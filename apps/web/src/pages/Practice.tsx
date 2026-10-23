@@ -7,6 +7,7 @@ import { deviceId, notes, prefs, seen } from "../lib/storage";
 
 type Phase = "loading" | "replay" | "decide" | "submitting" | "reveal" | "result" | "error";
 const REVEAL_TOTAL_MS = 2000;
+const isNarrow = () => window.matchMedia?.("(max-width: 640px)").matches ?? false;
 
 export default function Practice({ meta, filters, theme, onHome }: {
   meta: Meta | null;
@@ -25,6 +26,7 @@ export default function Practice({ meta, filters, theme, onHome }: {
   const [priceMode, setPriceMode] = useState<"pct" | "krw">("pct");
   const [dateMode, setDateMode] = useState<"rel" | "date">("rel");
   const [saved, setSaved] = useState(false);
+  const [zoom, setZoom] = useState<"near" | "all">(isNarrow() ? "near" : "all");
   const [session, setSession] = useState({ n: 0, correct: 0, hit: 0 });
   const timer = useRef<number | undefined>(undefined);
   const top = useRef<HTMLDivElement>(null);
@@ -192,6 +194,9 @@ export default function Practice({ meta, filters, theme, onHome }: {
                 ))}
                 <span className="tv-legend"><i />거래대금 20일 평균</span>
               </div>
+              <button type="button" className="btn small ghost" onClick={() => setZoom(zoom === "near" ? "all" : "near")}>
+                {zoom === "near" ? "전체 보기" : "확대 보기"}
+              </button>
               {(phase === "replay" || phase === "reveal") && (
                 <button type="button" className="btn small ghost" onClick={skip}>건너뛰기 ⏭</button>
               )}
@@ -209,7 +214,10 @@ export default function Practice({ meta, filters, theme, onHome }: {
               dates={res?.stock.dates}
               dateMode={dateMode}
               theme={theme}
+              zoom={zoom}
+              revealing={!!res}
             />
+            {zoom === "near" && <p className="axis-note">← 옆으로 밀면 이전 구간, 두 손가락으로 확대·축소</p>}
             <p className="axis-note">가격: {priceMode === "krw" ? "원화 (수정주가)" : "멈춘 날 종가 대비 %"} · 아래: 거래대금(억 원, 추정)</p>
           </div>
 

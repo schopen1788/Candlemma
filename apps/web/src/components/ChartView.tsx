@@ -37,7 +37,14 @@ export interface ChartViewProps {
   dates?: string[];
   dateMode: "rel" | "date";
   theme: "light" | "dark";
+  /** near: 최근 구간 확대 (모바일 기본), all: 전체 */
+  zoom: "near" | "all";
+  /** 제출 후 공개 재생 중이거나 결과 화면 */
+  revealing: boolean;
 }
+
+const MIN_BAR_PX = 7; // 확대 보기에서 캔들 한 칸 최소 폭
+const RIGHT_PAD = 2;
 
 function css(name: string) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -68,16 +75,18 @@ export default function ChartView(p: ChartViewProps) {
     const el = box.current!;
     const c = createChart(el, {
       autoSize: true,
-      layout: { attributionLogo: false, background: { type: ColorType.Solid, color: "transparent" }, fontFamily: "inherit", fontSize: 11, panes: { separatorColor: "transparent" } },
+      layout: { attributionLogo: false, background: { type: ColorType.Solid, color: "transparent" }, fontFamily: "inherit", fontSize: window.innerWidth < 640 ? 10 : 11, panes: { separatorColor: "transparent" } },
       crosshair: { mode: CrosshairMode.Magnet },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.06 } },
       timeScale: {
         borderVisible: false,
+        fixLeftEdge: true,
         tickMarkFormatter: (t: Time) => label(toD(t), true),
       },
       localization: { timeFormatter: (t: Time) => label(toD(t), false) },
-      handleScroll: false,
-      handleScale: false,
+      // 가로 드래그·핀치로 구간 이동/확대. 세로 드래그와 휠은 페이지 스크롤에 양보한다
+      handleScroll: { horzTouchDrag: true, pressedMouseMove: true, vertTouchDrag: false, mouseWheel: false },
+      handleScale: { pinch: true, mouseWheel: false, axisPressedMouseMove: false, axisDoubleClickReset: false },
     });
     const pricePct = { type: "custom" as const, minMove: 0.01, formatter: (v: number) => price(v) };
     const candle = c.addSeries(CandlestickSeries, { priceLineVisible: false, lastValueVisible: false, priceFormat: pricePct });
@@ -157,8 +166,21 @@ export default function ChartView(p: ChartViewProps) {
     );
     const stop = p.showStop && p.bars.some((b) => b.d === 0);
     ss.stopLine.applyOptions({ lineVisible: stop, axisLabelVisible: stop, color: css("--accent") });
-    c.timeScale().setVisibleLogicalRange({ from: -0.5, to: p.totalSlots + 0.5 });
-  }, [p.bars, p.ma, p.tvMa20, p.maOn, p.totalSlots, p.showStop, p.theme]);
+  }, [p.bars, p.ma, p.tvMa20, p.maOn, p.showStop, p.theme]);
+
+  // 보이는 구간: 봉 수가 바뀌거나(재생) 보기 모드가 바뀔 때만 맞춘다. 그 외에는 사용자가 옮긴 위치를 유지
+  useEffect(() => {
+    const c = chart.current;
+    if (!c) return;
+    const right = p.revealing ? p.totalSlots : p.bars.length + RIGHT_PAD;
+    if (p.zoom === "all") {
+      c.timeScale().setVisibleLogicalRange({ from: -0.5, to: Math.max(right, p.totalSlots) + 0.5 });
+      return;
+    }
+    const plot = c.timeScale().width() || (box.current?.clientWidth ?? 360) - 60;
+    const slots = Math.max(30, Math.floor(plot / MIN_BAR_PX));
+    c.timeScale().setVisibleLogicalRange({ from: Math.max(-0.5, right - slots), to: right + 0.5 });
+  }, [p.bars.length, p.totalSlots, p.zoom, p.revealing]);
 
   return <div className="chart" ref={box} />;
 }
