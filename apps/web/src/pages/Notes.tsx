@@ -20,7 +20,7 @@ export default function Notes() {
             <span className={`badge ${n.pick === n.answer ? "ok" : ""}`}>{n.pick === n.answer ? "정답" : "오답"}</span>
           </div>
           <p className="small">
-            {n.pattern} · T+{n.horizon} {n.change > 0 ? "+" : ""}{n.change.toFixed(2)}% · 정답 {PICK_LABEL[n.answer]} / 내 판단 {PICK_LABEL[n.pick]}
+            {n.pattern} · T+{n.horizon} {n.change > 0 ? "+" : ""}{n.change.toFixed(2)}% · 정답 {PICK_LABEL[n.answer]} / 내 판단 {n.pick ? PICK_LABEL[n.pick] : "시간 초과"}
           </p>
           <p className="small muted">내 근거: {n.my_tags.join(", ")} · 핵심 근거: {n.key_tags.join(", ")}</p>
           {n.text && <p className="memo">{n.text}</p>}

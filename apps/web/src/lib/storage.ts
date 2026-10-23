@@ -42,7 +42,7 @@ export interface Note {
   date: string;
   pattern: string;
   horizon: number;
-  pick: Pick;
+  pick: Pick | null;
   answer: Pick;
   change: number;
   my_tags: string[];
@@ -67,4 +67,10 @@ export const prefs = {
   setMa: (v: Record<string, boolean>) => write("cm.ma", v),
   filters: () => read<{ pattern?: string; horizon?: number; market?: string }>("cm.filters", {}),
   setFilters: (v: object) => write("cm.filters", v),
+};
+
+// Convenience for refresh recovery only. The server cookie remains the identity.
+export const rankedGame = {
+  get: () => read<string>("cm.rankedGame", ""),
+  set: (id: string) => write("cm.rankedGame", id),
 };

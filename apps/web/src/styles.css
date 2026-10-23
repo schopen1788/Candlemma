@@ -54,7 +54,7 @@ body {
   -webkit-font-smoothing: antialiased;
   word-break: keep-all;
 }
-button, select, textarea { font: inherit; color: inherit; }
+button, select, textarea, input { font: inherit; color: inherit; }
 a { color: var(--accent); }
 
 .app { max-width: 880px; margin: 0 auto; padding: 0 16px; min-height: 100vh; display: flex; flex-direction: column; }
@@ -198,7 +198,72 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--surface
 footer { border-top: 1px solid var(--line); padding: 16px 0 28px; font-size: 12.5px; color: var(--muted); }
 footer p { margin: 0 0 4px; }
 
+/* 기존 색과 타이포그래피를 잇는 도전 / 랭킹 */
+.btn:is(a) { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.challenge-entry { display: flex; gap: 24px; align-items: center; justify-content: space-between; border-block: 1px solid var(--line); padding: 22px 0; margin: 24px 0; }
+.challenge-entry h2 { font-size: 21px; margin: 0; letter-spacing: -.02em; }
+.challenge-entry p { margin: 4px 0; }
+.challenge-links { flex: none; display: grid; gap: 8px; text-align: center; font-size: 13px; }
+.challenge-progress { display: flex; align-items: center; gap: 16px; margin: 12px 0 18px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.challenge-progress progress { flex: 1; height: 5px; accent-color: var(--accent); border: 0; border-radius: 4px; background: var(--surface-2); }
+.challenge-progress progress::-webkit-progress-bar { background: var(--surface-2); border-radius: 4px; }
+.challenge-progress progress::-webkit-progress-value { background: var(--accent); border-radius: 4px; }
+.time-low, .form-error { color: var(--up); }
+.game-summary { padding: 24px 0 12px; }
+.game-summary .page-title { margin-top: 6px; }
+.score-line { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 24px; padding: 28px 0; margin: 20px 0 0; border-block: 1px solid var(--line); }
+.score-line dt { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.score-line dd { margin: 0; font-size: clamp(25px, 5vw, 40px); line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.score-line dd small { font-size: 13px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+.nickname-form, .registration-status { margin-top: 30px; border-bottom: 1px solid var(--line); padding-bottom: 24px; }
+.nickname-form h2, .registration-status h2 { font-size: 20px; margin: 0 0 18px; }
+.nickname-form label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.nickname-row { display: flex; gap: 10px; }
+.nickname-row input { flex: 1; min-width: 0; width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; }
+.nickname-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nickname-row .btn { flex: none; }
+.form-error:empty { display: none; }
+.identity-note { margin: 16px 0 24px; }
+.ranking-page { padding-top: 24px; }
+.ranking-heading { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+.ranking-heading .page-title { margin: 0; }
+.my-ranking { border-block: 1px solid var(--line); padding: 22px 0; margin: 24px 0 30px; }
+.my-ranking strong { display: block; font-size: 26px; letter-spacing: -.02em; margin: 4px 0; }
+.my-ranking strong span { font-size: 16px; color: var(--ink-2); padding-left: 8px; }
+.my-ranking p { margin: 4px 0 0; color: var(--ink-2); font-size: 14px; }
+.ranking-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; font-variant-numeric: tabular-nums; }
+.ranking-table th { padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 500; color: var(--muted); border-bottom: 1px solid var(--line); }
+.ranking-table td { padding: 16px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.ranking-table th:first-child { width: 64px; }
+.ranking-table th:nth-child(3) { width: 100px; }
+.ranking-table th:last-child { width: 110px; }
+.ranking-table th:nth-child(n+3), .ranking-table td:nth-child(n+3) { text-align: right; }
+.ranking-table td small { display: block; font-size: 11px; color: var(--muted); }
+.ranking-name { overflow-wrap: anywhere; }
+.rank-number { font-size: 16px; color: var(--muted); }
+.podium .rank-number { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: var(--ink); background: var(--surface-2); }
+.place-1 .rank-number { color: #936500; background: #f5d90a33; }
+.place-2 .rank-number { color: var(--ink-2); background: #8b929c26; }
+.place-3 .rank-number { color: #b97839; background: #b9783926; }
+.ranking-table tr.mine { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.me-label { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--accent); font-weight: 700; }
+.ranking-rules { margin-top: 24px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
 @media (max-width: 640px) {
+  .top { gap: 6px; }
+  .logo { font-size: 15px; gap: 4px; }
+  nav a { padding: 6px 7px; font-size: 13px; }
+  .challenge-entry { flex-direction: column; align-items: stretch; gap: 14px; }
+  .challenge-links { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .score-line { gap: 12px; grid-template-columns: 1.2fr 1fr 1fr; }
+  .score-line dd small { display: block; margin-top: 5px; }
+  .nickname-row { flex-direction: column; }
+  .ranking-heading .btn { padding: 9px 12px; font-size: 13px; }
+  .ranking-table th, .ranking-table td { padding: 12px 6px; }
+  .ranking-table th:first-child { width: 42px; }
+  .ranking-table th:nth-child(3) { width: 65px; }
+  .ranking-table th:last-child { width: 68px; }
   .filters { grid-template-columns: 1fr; }
   .steps { grid-template-columns: 1fr 1fr; }
   /* 차트는 화면 폭 끝까지, 높이는 화면의 약 60% */

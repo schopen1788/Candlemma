@@ -24,7 +24,9 @@ def main():
     g.add_argument("--remote", action="store_true")
     args = ap.parse_args()
 
-    lines = ["DELETE FROM puzzles_answer;", "DELETE FROM puzzles_public;", "DELETE FROM pattern_stats;"]
+    # Ranking sessions reference immutable puzzle IDs. Keep historical puzzles and
+    # their answer payloads; retire them from selection instead of deleting them.
+    lines = ["UPDATE puzzles_public SET active = 0;", "DELETE FROM pattern_stats;"]
     with open(EXPORT / "puzzles.jsonl", encoding="utf-8") as f:
         for line in f:
             p = json.loads(line)
@@ -32,8 +34,9 @@ def main():
             ans = json.dumps(p["answer"], ensure_ascii=False, separators=(",", ":"))
             lines.append(
                 f"INSERT INTO puzzles_public (id, payload, pattern, horizon, market, rating) VALUES "
-                f"({q(p['id'])}, {q(pub)}, {q(p['pattern'])}, {p['horizon']}, {q(p['market'])}, {p['rating']});")
-            lines.append(f"INSERT INTO puzzles_answer (id, payload) VALUES ({q(p['id'])}, {q(ans)});")
+                f"({q(p['id'])}, {q(pub)}, {q(p['pattern'])}, {p['horizon']}, {q(p['market'])}, {p['rating']}) "
+                "ON CONFLICT(id) DO UPDATE SET active = 1;")
+            lines.append(f"INSERT INTO puzzles_answer (id, payload) VALUES ({q(p['id'])}, {q(ans)}) ON CONFLICT(id) DO NOTHING;")
     for s in json.loads((EXPORT / "pattern_stats.json").read_text(encoding="utf-8")):
         lines.append(
             f"INSERT INTO pattern_stats (pattern, horizon, n, up, flat, down) VALUES "

@@ -23,7 +23,8 @@ export interface SubmitResult {
   correct: boolean;
   tag_hit: boolean;
   score: number;
-  pick: Pick;
+  pick: Pick | null;
+  timed_out?: boolean;
   my_tags: string[];
   answer: Pick;
   change: number;
@@ -52,14 +53,43 @@ export interface Filters { pattern?: string; horizon?: number; market?: string }
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
+    credentials: "same-origin",
     headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `요청 실패 (${res.status})`);
+  if (!res.ok) throw new ApiError((data as { error?: string }).error ?? `요청 실패 (${res.status})`, res.status);
   return data as T;
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
+
+export interface GameView {
+  game: { id: string; state: "active" | "complete" | "expired"; score: number; correct_count: number;
+    answered_count: number; total: number; accuracy: number; registered: boolean };
+  rules: { season: string; horizon: number; question_ms: number; max_score: number };
+  server_now: number;
+  question: Puzzle & { ordinal: number; deadline: number };
+  result: SubmitResult | null;
+}
+export interface RankingEntry {
+  nickname: string; score: number; correct_count: number; registered_at: number;
+  total: number; accuracy: number; rank: number; is_me?: boolean;
+}
+export interface RankingData { season: string; total: number; entries: RankingEntry[]; me: RankingEntry | null }
+
 export const api = {
+  start: () => call<GameView>("/game/start", { method: "POST", body: "{}" }),
+  game: (id: string) => call<GameView>(`/game/${encodeURIComponent(id)}`),
+  next: (id: string) => call<GameView>("/game/next", { method: "POST", body: JSON.stringify({ game_id: id }) }),
+  answer: (id: string, question: string, pick: Pick | null, tags: string[]) =>
+    call<GameView>("/game/answer", { method: "POST", body: JSON.stringify({ game_id: id, question_id: question, pick, tags }) }),
+  ranking: () => call<RankingData>("/ranking"),
+  myRanking: () => call<{ me: RankingEntry | null }>("/ranking/me"),
+  register: (id: string, nickname: string) => call<{ updated: boolean; me: RankingEntry }>("/ranking/submit", {
+    method: "POST", body: JSON.stringify({ game_id: id, nickname }),
+  }),
   meta: () => call<Meta>("/meta"),
   open: (filters: Filters, exclude: string[], userId: string) =>
     call<Puzzle>("/puzzles/open", {

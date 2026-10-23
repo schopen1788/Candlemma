@@ -6,7 +6,7 @@
   ],
   "scripts": {
     "config": "node scripts/build-config.mjs",
-    "build": "npm run config && npm -w @candlemma/web run build",
+    "build": "npm run config && npm -w @candlemma/api run typecheck && npm -w @candlemma/web run build",
     "test": "npm run config && npm -w @candlemma/api run test",
     "dev": "npm run build && npm -w @candlemma/web run serve",
     "deploy": "npm run build && npm -w @candlemma/web run deploy"

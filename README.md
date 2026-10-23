@@ -2,7 +2,9 @@
 
 실제 국내 상장 종목의 과거 일봉을 하루씩 재생하다 멈추고, 그 시점까지의 차트·거래대금만 보고 이후 흐름(상승/보합/하락)을 판단하는 차트 판독 훈련 게임. 기획은 [PLAN.md](PLAN.md).
 
-현재 구현 범위: **Phase 0 (데이터 파이프라인) + Phase 1 (연습 모드)**.
+현재 구현 범위: **데이터 파이프라인 + 연습 모드 + 로그인 없는 10문제 도전/전체 랭킹**.
+
+비회원 랭킹의 규칙·API·D1 스키마·보안 한계·무료 한도·배포 절차는 [운영 가이드](docs/guest-ranking.md)를 참고하세요. 기존 연습 모드는 그대로 사용할 수 있습니다.
 
 ## 구조
 
@@ -30,9 +32,12 @@ uv run pytest -q tests
 ```bash
 npm install
 npm test               # API 단위 테스트
+npm run build          # API 타입 검사 + 프로덕션 프론트 빌드
 npm run dev            # 빌드 후 wrangler pages dev (http://localhost:8788)
 npm run deploy         # Cloudflare Pages 배포 (프로젝트 candlemma)
 ```
+
+처음 실행하거나 랭킹 버전을 배포하기 전에 `apps/web`에서 `npx wrangler d1 migrations apply candlemma --local`(운영은 `--remote`)로 마이그레이션을 먼저 적용하세요. 운영 DB는 백업 후 적용합니다.
 
 운영 환경에는 `TOKEN_SECRET` 시크릿이 필요하다: `npx wrangler pages secret put TOKEN_SECRET --project-name candlemma`
 

@@ -13,3 +13,5 @@ pipeline/data/
 apps/api/src/generated/
 *.tsbuildinfo
 .env
+candlemma-backup*.sql
+.artifacts/

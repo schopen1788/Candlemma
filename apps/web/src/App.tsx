@@ -4,12 +4,13 @@ import { prefs, themePref, type ThemePref } from "./lib/storage";
 import Home from "./pages/Home";
 import Notes from "./pages/Notes";
 import Practice from "./pages/Practice";
+import Ranking from "./pages/Ranking";
 
-type Route = "home" | "practice" | "notes";
+type Route = "home" | "practice" | "notes" | "challenge" | "ranking";
 
 function routeFromHash(): Route {
   const h = location.hash.replace("#/", "");
-  return h === "practice" || h === "notes" ? h : "home";
+  return h === "practice" || h === "notes" || h === "challenge" || h === "ranking" ? h : "home";
 }
 
 function systemDark() {
@@ -26,7 +27,7 @@ export default function App() {
   const theme = pref === "system" ? (sysDark ? "dark" : "light") : pref;
 
   useEffect(() => {
-    const onHash = () => setRoute(routeFromHash());
+    const onHash = () => { setRoute(routeFromHash()); window.scrollTo(0, 0); };
     window.addEventListener("hashchange", onHash);
     const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
     const onMq = () => setSysDark(mq.matches);
@@ -70,6 +71,7 @@ export default function App() {
         </a>
         <nav>
           <a href="#/practice" className={route === "practice" ? "on" : ""}>연습</a>
+          <a href="#/ranking" className={route === "ranking" || route === "challenge" ? "on" : ""}>랭킹</a>
           <a href="#/notes" className={route === "notes" ? "on" : ""}>복기 노트</a>
           <button type="button" className="icon" onClick={cycleTheme} aria-label={theme === "dark" ? "라이트 테마로" : "다크 테마로"}>
             {theme === "dark" ? "☀" : "☾"}
@@ -80,6 +82,8 @@ export default function App() {
       <main>
         {route === "home" && <Home meta={meta} metaError={metaError} filters={filters} setFilters={setFilters} onStart={() => go("practice")} />}
         {route === "practice" && <Practice meta={meta} filters={filters} theme={theme} onHome={() => go("home")} />}
+        {route === "challenge" && <Practice key="challenge" ranked meta={meta} filters={filters} theme={theme} onHome={() => go("home")} />}
+        {route === "ranking" && <Ranking />}
         {route === "notes" && <Notes />}
       </main>
 

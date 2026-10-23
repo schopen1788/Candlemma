@@ -61,6 +61,12 @@ export default function Home({ meta, filters, setFilters, onStart, metaError }: 
         <button type="button" className="btn primary wide" onClick={onStart} disabled={!total}>연습 시작</button>
       </section>
 
+      <section className="challenge-entry">
+        <div><p className="eyebrow">10문제 도전</p><h2>열 번의 판단, 나의 기록</h2>
+          <p className="muted small">T+3 · 문제당 120초 · 로그인 없이 플레이하고, 원하면 닉네임으로 랭킹에 참여해요.</p></div>
+        <div className="challenge-links"><a className="btn primary" href="#/challenge">도전 시작 →</a><a href="#/ranking">전체 랭킹 보기</a></div>
+      </section>
+
       <section className="steps">
         {STEPS.map(([t, d], i) => (
           <div key={t} className="step">
@@ -92,7 +98,7 @@ export default function Home({ meta, filters, setFilters, onStart, metaError }: 
 
       <section className="card soon">
         <h3>준비 중</h3>
-        <p className="muted small">오늘의 차트(매일 5문제·일간 랭킹), 레이팅 모드, 패턴 도장 코스는 다음 단계에서 열려요.</p>
+        <p className="muted small">오늘의 차트, 일간·주간 랭킹, 레이팅 모드, 패턴 도장 코스는 다음 단계에서 열려요.</p>
       </section>
     </div>
   );

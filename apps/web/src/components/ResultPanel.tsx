@@ -4,9 +4,10 @@ import { PICK_LABEL } from "../lib/api";
 
 const pct = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 
-export default function ResultPanel({ r, onNext, onSaveNote, saved, priceMode, setPriceMode, dateMode, setDateMode }: {
+export default function ResultPanel({ r, onNext, onSaveNote, saved, priceMode, setPriceMode, dateMode, setDateMode, nextLabel = "다음 문제" }: {
   r: SubmitResult;
   onNext: () => void;
+  nextLabel?: string;
   onSaveNote: (text: string) => void;
   saved: boolean;
   priceMode: "pct" | "krw";
@@ -20,9 +21,9 @@ export default function ResultPanel({ r, onNext, onSaveNote, saved, priceMode, s
     <section className="result">
       <div className={`verdict ${r.correct ? "ok" : "miss"}`}>
         <div>
-          <p className="verdict-title">{r.correct ? "맞았어요" : "아쉬워요"}</p>
+          <p className="verdict-title">{r.timed_out ? "시간이 끝났어요" : r.correct ? "맞았어요" : "아쉬워요"}</p>
           <p className="verdict-sub">
-            정답 <b className={r.answer}>{PICK_LABEL[r.answer]}</b> · 내 판단 {PICK_LABEL[r.pick]}
+            정답 <b className={r.answer}>{PICK_LABEL[r.answer]}</b> · 내 판단 {r.pick ? PICK_LABEL[r.pick] : "시간 초과"}
           </p>
         </div>
         <div className="verdict-num">
@@ -122,7 +123,7 @@ export default function ResultPanel({ r, onNext, onSaveNote, saved, priceMode, s
         <button type="button" className="btn ghost" onClick={() => onSaveNote(memo)} disabled={saved}>
           {saved ? "복기 노트에 저장됨" : "복기 노트에 저장"}
         </button>
-        <button type="button" className="btn primary" onClick={onNext}>다음 문제</button>
+        <button type="button" className="btn primary" onClick={onNext}>{nextLabel}</button>
       </div>
     </section>
   );

@@ -2,18 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ChartView, { MA_KEYS } from "../components/ChartView";
 import { DirectionPicker, InfoCard, RuleCard, TagPicker } from "../components/Pickers";
 import ResultPanel from "../components/ResultPanel";
-import { api, type Bar, type Filters, type Meta, type Pick, type Puzzle, type SubmitResult } from "../lib/api";
-import { deviceId, notes, prefs, seen } from "../lib/storage";
+import GameSummary from "../components/GameSummary";
+import { api, ApiError, type GameView, type Bar, type Filters, type Meta, type Pick, type Puzzle, type SubmitResult } from "../lib/api";
+import { deviceId, notes, prefs, seen, rankedGame } from "../lib/storage";
 
-type Phase = "loading" | "replay" | "decide" | "submitting" | "reveal" | "result" | "error";
+type Phase = "loading" | "replay" | "decide" | "submitting" | "reveal" | "result" | "error" | "finished";
 const REVEAL_TOTAL_MS = 2000;
 const isNarrow = () => window.matchMedia?.("(max-width: 640px)").matches ?? false;
 
-export default function Practice({ meta, filters, theme, onHome }: {
+export default function Practice({ meta, filters, theme, onHome, ranked = false }: {
   meta: Meta | null;
   filters: Filters;
   theme: "light" | "dark";
   onHome: () => void;
+  ranked?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState("");
@@ -30,10 +32,18 @@ export default function Practice({ meta, filters, theme, onHome }: {
   const [session, setSession] = useState({ n: 0, correct: 0, hit: 0 });
   const timer = useRef<number | undefined>(undefined);
   const top = useRef<HTMLDivElement>(null);
+  const [rankView, setRankView] = useState<GameView | null>(null);
+  const gameId = useRef("");
+  const loading = useRef(false);
+  const answering = useRef(false);
+  const deadline = useRef(0);
+  const [remaining, setRemaining] = useState(120);
 
   const replay = meta?.replay ?? { lookback: 120, replay_days: 40, ms_per_day: 120, reveal_extra: 10 };
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (action: "resume" | "next" | "new" = "resume") => {
+    if (loading.current) return;
+    loading.current = true;
     window.clearInterval(timer.current);
     setPhase("loading");
     setRes(null);
@@ -43,6 +53,37 @@ export default function Practice({ meta, filters, theme, onHome }: {
     setPriceMode("pct");
     setDateMode("rel");
     try {
+      if (ranked) {
+        const id = action === "new" ? "" : gameId.current || rankedGame.get();
+        let view: GameView;
+        try {
+          view = id ? await (action === "next" ? api.next(id) : api.game(id)) : await api.start();
+        } catch (e) {
+          if (id && e instanceof ApiError && [403, 404, 410].includes(e.status)) {
+            rankedGame.set("");
+            view = await api.start();
+          } else throw e;
+        }
+        gameId.current = view.game.id;
+        rankedGame.set(view.game.id);
+        setRankView(view);
+        setPz(view.question);
+        deadline.current = Date.now() + view.question.deadline - view.server_now;
+        setRemaining(Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000)));
+        if (view.game.state === "complete") {
+          setPhase("finished");
+        } else if (view.result) {
+          setRes(view.result);
+          setShown(view.question.bars.length);
+          setRevealed(view.result.reveal.bars.length);
+          setPhase("result");
+        } else {
+          setShown(view.question.bars.filter(b => b.d < view.question.replay_from).length);
+          setPhase("replay");
+        }
+        top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
       const p = await api.open(filters, seen.list(), deviceId());
       seen.add(p.puzzle_id);
       setPz(p);
@@ -52,8 +93,10 @@ export default function Practice({ meta, filters, theme, onHome }: {
     } catch (e) {
       setError((e as Error).message);
       setPhase("error");
+    } finally {
+      loading.current = false;
     }
-  }, [filters]);
+  }, [filters, ranked]);
 
   useEffect(() => {
     load();
@@ -106,11 +149,21 @@ export default function Practice({ meta, filters, theme, onHome }: {
     }
   };
 
-  const submit = async (pick: Pick) => {
-    if (!pz || tags.length === 0) return;
+  const submit = useCallback(async (pick: Pick | null) => {
+    if (!pz || answering.current || (pick !== null && tags.length === 0)) return;
+    answering.current = true;
+    window.clearInterval(timer.current);
     setPhase("submitting");
     try {
-      const r = await api.submit(pz.open_token, pick, tags);
+      let r: SubmitResult;
+      if (ranked) {
+        const view = await api.answer(gameId.current, pz.puzzle_id, pick, pick === null ? [] : tags);
+        setRankView(view);
+        r = view.result!;
+        setShown(pz.bars.length);
+      } else {
+        r = await api.submit(pz.open_token, pick!, tags);
+      }
       setRes(r);
       top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       setSession((s) => ({ n: s.n + 1, correct: s.correct + (r.correct ? 1 : 0), hit: s.hit + (r.tag_hit ? 1 : 0) }));
@@ -118,8 +171,22 @@ export default function Practice({ meta, filters, theme, onHome }: {
     } catch (e) {
       setError((e as Error).message);
       setPhase("error");
+    } finally {
+      answering.current = false;
     }
-  };
+  }, [pz, tags, ranked]);
+
+  useEffect(() => {
+    if (!ranked || !pz || !["replay", "decide"].includes(phase)) return;
+    const tick = () => {
+      const seconds = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000));
+      setRemaining(seconds);
+      if (!seconds) void submit(null);
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [ranked, pz, phase, submit]);
 
   const toggleMa = (k: string) => {
     const v = { ...maOn, [k]: !maOn[k] };
@@ -165,23 +232,33 @@ export default function Practice({ meta, filters, theme, onHome }: {
   const totalSlots = pz ? pz.bars.length + pz.horizon + replay.reveal_extra : 0;
   const stopped = phase !== "loading" && phase !== "replay";
 
+  if (phase === "finished" && rankView) return <GameSummary key={rankView.game.id} view={rankView} onHome={onHome} onAgain={() => load("new")} />;
+
   return (
     <div className="practice" ref={top}>
       <div className="practice-top">
         <button type="button" className="link" onClick={onHome}>← 처음으로</button>
-        {session.n > 0 && (
+        {ranked && rankView ? <span className="session">10문제 도전 · {rankView.question.ordinal}/10 · {rankView.game.score}점</span> : session.n > 0 && (
           <span className="session">이번 연습 · 정확도 {session.correct}/{session.n} · 근거 일치 {session.hit}/{session.n}</span>
         )}
       </div>
 
+      {ranked && rankView && <div className="challenge-progress">
+        <progress aria-label="도전 진행률" value={rankView.game.answered_count} max={10} />
+        <span className={remaining <= 15 ? "time-low" : ""} aria-live={remaining <= 10 ? "polite" : "off"}>
+          {["replay", "decide", "submitting"].includes(phase) ? `남은 시간 ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}` : "제출 완료"}
+        </span>
+      </div>}
+      {phase === "loading" && <p className="empty" role="status">차트를 불러오는 중…</p>}
+
       {phase === "error" && (
         <div className="card error">
-          <p>{error}</p>
-          <button type="button" className="btn primary" onClick={load}>다시 시도</button>
+          <p role="alert">{error}</p>
+          <button type="button" className="btn primary" onClick={() => load()}>다시 시도</button>
         </div>
       )}
 
-      {pz && chartData && phase !== "error" && (
+      {pz && chartData && phase !== "error" && phase !== "loading" && (
         <>
           <RuleCard puzzle={pz} />
           <div className="chart-wrap">
@@ -200,7 +277,6 @@ export default function Practice({ meta, filters, theme, onHome }: {
               {(phase === "replay" || phase === "reveal") && (
                 <button type="button" className="btn small ghost" onClick={skip}>건너뛰기 ⏭</button>
               )}
-              {phase === "loading" && <span className="hint">불러오는 중…</span>}
             </div>
             <ChartView
               bars={chartData.bars}
@@ -235,7 +311,8 @@ export default function Practice({ meta, filters, theme, onHome }: {
           {phase === "result" && res && (
             <ResultPanel
               r={res}
-              onNext={load}
+              onNext={() => ranked && rankView?.game.state === "complete" ? setPhase("finished") : load(ranked ? "next" : "resume")}
+              nextLabel={ranked && rankView?.game.state === "complete" ? "최종 결과 보기" : "다음 문제"}
               onSaveNote={saveNote}
               saved={saved}
               priceMode={priceMode}

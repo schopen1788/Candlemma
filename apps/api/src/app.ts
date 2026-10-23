@@ -1,4 +1,8 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import { HTTPException } from "hono/http-exception";
+import { ranking, limitRequest } from "./ranking";
+import { puzzleResult, pickCounts } from "./puzzle-result";
 import { config, type Pick } from "./config";
 import { distribution, grade, validateSubmit } from "./grade";
 import { makeToken, verifyToken } from "./token";
@@ -9,6 +13,25 @@ const MAX_EXCLUDE = 80;
 const DEV_SECRET = "dev-only-secret";
 
 export const app = new Hono<{ Bindings: Env }>().basePath("/api");
+
+app.use("*", async (c, next) => {
+  c.header("Cache-Control", "no-store");
+  c.header("X-Content-Type-Options", "nosniff");
+  if (c.req.method === "POST") {
+    const origin = c.req.header("origin");
+    if ((origin && origin !== new URL(c.req.url).origin) || c.req.header("sec-fetch-site") === "cross-site")
+      return c.json({ error: "같은 사이트에서 요청해 주세요." }, 403);
+    if (!c.req.header("content-type")?.toLowerCase().startsWith("application/json"))
+      return c.json({ error: "JSON 요청이 필요해요." }, 415);
+  }
+  await next();
+});
+app.use("*", bodyLimit({ maxSize: 4096, onError: c => c.json({ error: "요청이 너무 커요." }, 413) }));
+app.use("*", async (c, next) => {
+  if (!c.req.path.endsWith("/meta") && !c.req.path.endsWith("/health")) await limitRequest(c);
+  await next();
+});
+app.route("/", ranking);
 
 const secret = (env: Env) => env.TOKEN_SECRET || DEV_SECRET;
 
@@ -109,44 +132,7 @@ app.post("/puzzles/submit", async (c) => {
     c.env.DB.prepare("UPDATE puzzles_public SET play_count = play_count + 1 WHERE id = ?").bind(open.puzzle_id),
   ]);
 
-  const [stat, dist] = await Promise.all([
-    c.env.DB.prepare("SELECT n, up, flat, down FROM pattern_stats WHERE pattern = ? AND horizon = ?")
-      .bind(a.pattern, pub.horizon).first<{ n: number; up: number; flat: number; down: number }>(),
-    pickCounts(c.env.DB, open.puzzle_id),
-  ]);
-
-  const reveal = Number(h) + config.replay.reveal_extra;
-  const p = config.patterns.find((x) => x.id === a.pattern);
-  const futureMa = a.future_ma as Record<string, (number | null)[]>;
-  return c.json({
-    correct: g.correct,
-    tag_hit: g.tagHit,
-    score: g.score,
-    pick: v.pick,
-    my_tags: v.tags,
-    answer,
-    change: a.changes[h],
-    horizon: Number(h),
-    flat_band: config.horizons[h],
-    key_tags: a.key_tags,
-    explain: a.explain,
-    disclosures: a.disclosures ?? [],
-    pattern: { id: a.pattern, name: a.pattern_name, desc: p?.desc ?? "" },
-    stats: stat,
-    distribution: distribution(dist),
-    reveal: {
-      bars: a.future_bars.slice(0, reveal),
-      ma: Object.fromEntries(Object.entries(futureMa).map(([k, arr]) => [k, arr.slice(0, reveal)])),
-      tv_ma20: a.future_tv_ma20.slice(0, reveal),
-    },
-    stock: {
-      name: a.name,
-      code: a.code,
-      date: a.date,
-      close_d0: a.close_d0,
-      dates: a.dates.slice(0, 120 + reveal),
-    },
-  });
+  return c.json(await puzzleResult(c.env.DB, open.puzzle_id, g, v.pick, v.tags));
 });
 
 // 제출한 사람만: 이 문제의 전체 사용자 선택 비율
@@ -158,13 +144,8 @@ app.get("/puzzles/:id/distribution", async (c) => {
   return c.json(distribution(await pickCounts(c.env.DB, open.puzzle_id)));
 });
 
-async function pickCounts(db: D1Database, puzzleId: string) {
-  const rows = await db.prepare("SELECT pick, COUNT(*) AS n FROM submissions WHERE puzzle_id = ? GROUP BY pick")
-    .bind(puzzleId).all<{ pick: Pick; n: number }>();
-  return Object.fromEntries(rows.results.map((r) => [r.pick, r.n])) as Partial<Record<Pick, number>>;
-}
-
 app.onError((err, c) => {
+  if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
   console.error(err);
   return c.json({ error: "서버 오류가 발생했어요." }, 500);
 });
