@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Pick, SubmitResult } from "../lib/api";
 import { PICK_LABEL } from "../lib/api";
+import { directionRanges } from "../lib/judging";
 
 const pct = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 
@@ -25,14 +26,28 @@ export default function ResultPanel({ r, onNext, onSaveNote, saved, priceMode, s
           <p className="verdict-sub">
             정답 <b className={r.answer}>{PICK_LABEL[r.answer]}</b> · 내 판단 {r.pick ? PICK_LABEL[r.pick] : "시간 초과"}
           </p>
+          {r.evidence && <p className="hint">방향 {r.correct ? 100 : 0}점 · 관찰 {r.tag_hit ? 20 : 0}점 · 합계 {r.score}점</p>}
         </div>
         <div className="verdict-num">
           <span className={r.change > 0 ? "up" : r.change < 0 ? "down" : ""}>{pct(r.change)}</span>
-          <small>T+{r.horizon} 종가 변동 · 보합 ±{r.flat_band.toFixed(1)}%</small>
+          <small>T+{r.horizon} 종가 변동 · 보합 {directionRanges(r.flat_band).flat}</small>
         </div>
       </div>
 
-      <div className="card">
+      {r.evidence ? <section className="card observation-feedback">
+        <div className="card-head"><h3>내 관찰 확인</h3><span className={`badge ${r.tag_hit ? "ok" : ""}`}>
+          {r.evidence.checks.filter(t => t.matched).length}/{r.evidence.checks.length} 일치
+        </span></div>
+        <p className="observation-intro">멈춘 날까지의 차트와 공개 정보로 확인했어요. 관찰 일치와 이후 가격 방향은 별도로 평가해요.</p>
+        <ul className="observation-checks">{r.evidence.checks.map(t => <li key={t.id}>
+          <div><strong>{t.label}</strong><span className={`badge ${t.matched ? "ok" : ""}`}>{t.matched ? "관찰 일치" : "기준과 다름"}</span></div>
+          <p>{t.description}</p>
+        </li>)}</ul>
+        {r.evidence.examples.length > 0 && <details className="observation-examples"><summary>함께 살펴볼 관찰 {r.evidence.examples.length}개</summary>
+          <ul>{r.evidence.examples.map(t => <li key={t.id}><strong>{t.label}</strong><p>{t.description}</p></li>)}</ul>
+        </details>}
+        <p className="hint">선택한 관찰이 하나 이상 일치하면 관찰 점수 20점을 받아요.</p>
+      </section> : <div className="card">
         <div className="card-head">
           <h3>내 근거 vs 핵심 근거</h3>
           <span className={`badge ${r.tag_hit ? "ok" : ""}`}>{r.tag_hit ? "근거 일치" : "근거 불일치"}</span>
@@ -48,7 +63,7 @@ export default function ResultPanel({ r, onNext, onSaveNote, saved, priceMode, s
             );
           })}
         </div>
-      </div>
+      </div>}
 
       <div className="card">
         <div className="card-head">

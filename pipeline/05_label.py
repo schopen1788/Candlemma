@@ -1,5 +1,6 @@
 """05. T+1/T+3/T+5 결과 라벨링, key_tags 계산 → data/labeled.parquet"""
 import pandas as pd
+import argparse
 
 from common import DATA, judge_cfg, patterns_cfg
 from lib import judge, key_tags, observed_tags
@@ -8,7 +9,17 @@ FEAT = DATA / "features"
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--from-existing', action='store_true', help='Rejudge saved percentage changes without fetching or rescanning candles')
+    args = ap.parse_args()
     jcfg, pcfg = judge_cfg(), patterns_cfg()
+    if args.from_existing:
+        lab = pd.read_parquet(DATA / 'labeled.parquet')
+        for h, band in jcfg['horizons'].items():
+            lab[f'ans_{h}'] = lab[f'chg_{h}'].map(lambda chg: judge(chg, band))
+        lab.to_parquet(DATA / 'labeled.parquet', index=False)
+        print(f'rejudged: {len(lab)} scenes using {jcfg["version"]}')
+        return
     sc = pd.read_parquet(DATA / "scenes.parquet")
     out = []
     for code, g in sc.groupby("code"):

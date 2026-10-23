@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { api, type GameView, type RankingEntry } from '../lib/api';
+import { api, RANKING_SEASON, type GameView, type RankingEntry } from '../lib/api';
 
 export default function GameSummary({ view, onHome, onAgain }: { view: GameView; onHome: () => void; onAgain: () => void }) {
   const [nickname, setNickname] = useState('');
@@ -11,8 +11,8 @@ export default function GameSummary({ view, onHome, onAgain }: { view: GameView;
   const submitting = useRef(false);
   useEffect(() => { window.scrollTo(0, 0); }, []);
   useEffect(() => {
-    if (view.game.registered) api.myRanking().then(r => setMe(r.me)).catch(() => {});
-  }, [view.game.registered]);
+    if (view.game.registered && view.rules.season === RANKING_SEASON) api.myRanking().then(r => setMe(r.me)).catch(() => {});
+  }, [view.game.registered, view.rules.season]);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (submitting.current) return;
@@ -29,7 +29,7 @@ export default function GameSummary({ view, onHome, onAgain }: { view: GameView;
       try {
         const current = await api.game(view.game.id);
         if (!current.game.registered) throw err;
-        const result = await api.myRanking();
+        const result = await api.myRanking(view.rules.season);
         setMe(result.me);
         setRegistered(true);
       } catch {
@@ -49,7 +49,10 @@ export default function GameSummary({ view, onHome, onAgain }: { view: GameView;
       <div><dt>정답률</dt><dd>{view.game.accuracy}<small>%</small></dd></div>
     </dl>
     <p className="muted small">방향 정답 100점 + 근거 일치 20점 · 문제당 최대 120점</p>
-    {registered ? <div className="registration-status" role="status">
+    {view.rules.season !== RANKING_SEASON ? <div className="registration-status" role="status">
+      <h2>새 기준으로 도전해 보세요</h2>
+      <p>이전 랭킹은 종료됐어요. 보합 ±0.5% 기준의 새 도전으로 전체 랭킹에 참여할 수 있어요.</p>
+    </div> : registered ? <div className="registration-status" role="status">
       <h2>{me ? `내 최고 기록은 ${me.rank.toLocaleString('ko-KR')}위` : '랭킹에 등록했어요'}</h2>
       {me && <p><b>{me.nickname}</b> · {me.score.toLocaleString('ko-KR')}점 · 정답률 {me.accuracy}%</p>}
       <p className="muted small">{updated ? '최고 기록을 저장했어요.' : '같은 브라우저에서는 가장 높은 기록 하나가 표시돼요.'}</p>

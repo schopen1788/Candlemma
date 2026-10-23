@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from common import EXPORT, judge_cfg, patterns_cfg
-from lib import add_features
+from lib import add_features, judge
 from tests.test_patterns import flat_series
 
 export = __import__("10_export")
@@ -24,6 +24,8 @@ def make_public():
 
 def test_build_has_no_future():
     f, i, pub, ans = make_public()
+    assert pub["flat_band"] == 0.5
+    assert pub["judge_version"] == judge_cfg()["version"]
     assert [b["d"] for b in pub["bars"]] == list(range(-119, 1))
     assert pub["bars"][-1]["c"] == 0.0
     for arr in list(pub["ma"].values()) + [pub["tv_ma20"]]:
@@ -53,6 +55,11 @@ def test_exported_public_has_no_future_and_balanced():
             for k in ("answer", "answers", "future_bars", "key_tags", "code", "name", "date"):
                 assert k not in pub
             ans = p["answer"]["answers"][str(p["horizon"])]
+            assert pub["flat_band"] == judge_cfg()["horizons"][p["horizon"]]
+            assert pub["judge_version"] == judge_cfg()["version"]
+            for h, band in judge_cfg()["horizons"].items():
+                assert p["answer"]["answers"][str(h)] == judge(p["answer"]["changes"][str(h)], band)
+            assert "보합 범위 ±0.5%" in p["answer"]["explain"]
             per.setdefault(p["pattern"], []).append(ans)
     for pat, answers in per.items():
         assert len(answers) >= 200, pat

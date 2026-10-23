@@ -83,6 +83,8 @@ def test_dry_sideways():
 
 @pytest.mark.parametrize("chg,band,expect", [
     (1.5, 1.0, "up"), (1.0, 1.0, "flat"), (-1.0, 1.0, "flat"), (-1.01, 1.0, "down"), (0, 3.0, "flat"),
+    (0.51, 0.5, "up"), (0.5, 0.5, "flat"), (-0.5, 0.5, "flat"), (-0.51, 0.5, "down"),
+    (0.3, 0.5, "flat"), (-0.3, 0.5, "flat"),
 ])
 def test_judge(chg, band, expect):
     assert judge(chg, band) == expect

@@ -15,15 +15,19 @@ export async function pickCounts(db: D1Database, puzzleId: string) {
 export async function puzzleResult(db: D1Database, puzzleId: string,
   g: { correct: boolean; tagHit: boolean; score: number }, pick: Pick | null, tags: string[]) {
   const [pub, ans] = await Promise.all([
-    db.prepare('SELECT horizon FROM puzzles_public WHERE id = ?').bind(puzzleId).first<{ horizon: number }>(),
+    db.prepare('SELECT horizon, payload FROM puzzles_public WHERE id = ?').bind(puzzleId).first<{ horizon: number; payload: string }>(),
     db.prepare('SELECT payload FROM puzzles_answer WHERE id = ?').bind(puzzleId).first<{ payload: string }>(),
   ]);
   if (!pub || !ans) throw new Error('Missing puzzle');
   const a = JSON.parse(ans.payload);
+  const chart = JSON.parse(pub.payload);
   const h = String(pub.horizon);
   const [stat, counts] = await Promise.all([
-    db.prepare('SELECT n, up, flat, down FROM pattern_stats WHERE pattern = ? AND horizon = ?')
-      .bind(a.pattern, pub.horizon).first(),
+    (chart.judge_version
+      ? db.prepare('SELECT n, up, flat, down FROM pattern_stats_versions WHERE judge_version = ? AND pattern = ? AND horizon = ?')
+        .bind(chart.judge_version, a.pattern, pub.horizon)
+      : db.prepare('SELECT n, up, flat, down FROM pattern_stats WHERE pattern = ? AND horizon = ?')
+        .bind(a.pattern, pub.horizon)).first(),
     pickCounts(db, puzzleId),
   ]);
   const reveal = pub.horizon + config.replay.reveal_extra;
@@ -31,7 +35,7 @@ export async function puzzleResult(db: D1Database, puzzleId: string,
   return {
     correct: g.correct, tag_hit: g.tagHit, score: g.score, pick, my_tags: tags,
     answer: a.answers[h], change: a.changes[h], horizon: pub.horizon,
-    flat_band: config.horizons[h], key_tags: a.key_tags, explain: a.explain,
+    flat_band: chart.flat_band, judge_version: chart.judge_version, key_tags: a.key_tags, explain: a.explain,
     disclosures: a.disclosures ?? [], pattern: { id: a.pattern, name: a.pattern_name, desc: p?.desc ?? '' },
     stats: stat, distribution: distribution(counts),
     reveal: {

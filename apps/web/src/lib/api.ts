@@ -2,6 +2,8 @@ export type Pick = "up" | "flat" | "down";
 
 export interface Bar { d: number; o: number; h: number; l: number; c: number; tv: number }
 export type MaSet = Record<string, (number | null)[]>;
+export interface ReasonItem { id: string; label: string; description: string }
+export interface ReasonGroup { id: string; name: string; description: string; items: ReasonItem[] }
 
 export interface Puzzle {
   puzzle_id: string;
@@ -10,6 +12,7 @@ export interface Puzzle {
   sector: string;
   horizon: number;
   flat_band: number;
+  judge_version?: string;
   bars: Bar[];
   ma: MaSet;
   tv_ma20: number[];
@@ -17,6 +20,7 @@ export interface Puzzle {
   info: { themes: string[]; items: { d: number; kind: string; text: string; url: string | null }[] };
   tags: string[];
   open_token: string;
+  reason_groups?: ReasonGroup[];
 }
 
 export interface SubmitResult {
@@ -25,6 +29,7 @@ export interface SubmitResult {
   score: number;
   pick: Pick | null;
   timed_out?: boolean;
+  evidence?: { version: string; checks: (ReasonItem & { matched: boolean })[]; examples: ReasonItem[] };
   my_tags: string[];
   answer: Pick;
   change: number;
@@ -50,8 +55,10 @@ export interface Meta {
 
 export interface Filters { pattern?: string; horizon?: number; market?: string }
 
+const apiBase = /^\/candlemma(?:\/|$)/.test(location.pathname) ? "/candlemma/api" : "/api";
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${apiBase}${path}`, {
     ...init,
     credentials: "same-origin",
     headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
@@ -78,15 +85,16 @@ export interface RankingEntry {
   total: number; accuracy: number; rank: number; is_me?: boolean;
 }
 export interface RankingData { season: string; total: number; entries: RankingEntry[]; me: RankingEntry | null }
+export const RANKING_SEASON = 'all-observations-flat05-v3';
 
 export const api = {
-  start: () => call<GameView>("/game/start", { method: "POST", body: "{}" }),
+  start: () => call<GameView>("/game/start", { method: "POST", body: JSON.stringify({ observation_version: 2 }) }),
   game: (id: string) => call<GameView>(`/game/${encodeURIComponent(id)}`),
   next: (id: string) => call<GameView>("/game/next", { method: "POST", body: JSON.stringify({ game_id: id }) }),
   answer: (id: string, question: string, pick: Pick | null, tags: string[]) =>
     call<GameView>("/game/answer", { method: "POST", body: JSON.stringify({ game_id: id, question_id: question, pick, tags }) }),
   ranking: () => call<RankingData>("/ranking"),
-  myRanking: () => call<{ me: RankingEntry | null }>("/ranking/me"),
+  myRanking: (season = RANKING_SEASON) => call<{ me: RankingEntry | null }>(`/ranking/me?season=${encodeURIComponent(season)}`),
   register: (id: string, nickname: string) => call<{ updated: boolean; me: RankingEntry }>("/ranking/submit", {
     method: "POST", body: JSON.stringify({ game_id: id, nickname }),
   }),
@@ -94,7 +102,7 @@ export const api = {
   open: (filters: Filters, exclude: string[], userId: string) =>
     call<Puzzle>("/puzzles/open", {
       method: "POST",
-      body: JSON.stringify({ context: "practice", filters, exclude, user_id: userId }),
+      body: JSON.stringify({ context: "practice", observation_version: 2, filters, exclude, user_id: userId }),
     }),
   submit: (token: string, pick: Pick, tags: string[]) =>
     call<SubmitResult>("/puzzles/submit", {

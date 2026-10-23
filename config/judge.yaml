@@ -1,8 +1,9 @@
 # 판정 규칙 (PLAN.md 2.3). 보합 범위 단위: %
+version: flat05-v3
 horizons:
-  1: 1.0
-  3: 2.0
-  5: 3.0
+  1: 0.5
+  3: 0.5
+  5: 0.5
 replay:
   lookback: 120        # 멈춘 날 포함 보여줄 거래일 수 (D-119 ~ D0)
   replay_days: 40      # 마지막 40일은 하루씩 재생

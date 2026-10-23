@@ -1,0 +1,82 @@
+# 연습용 관찰 분류. ID는 저장되는 값이므로 이름을 바꿔도 유지한다.
+groups:
+  - id: trend
+    name: 추세
+    description: 최근 고점과 저점의 방향을 살펴보세요.
+    items:
+      - { id: trend_rising, label: 고점·저점 상승, description: 최근 10일의 고점과 저점이 앞선 10일보다 각각 0.5% 넘게 높아요. }
+      - { id: trend_falling, label: 고점·저점 하락, description: 최근 10일의 고점과 저점이 앞선 10일보다 각각 0.5% 넘게 낮아요. }
+      - { id: trend_converging, label: 고점·저점 수렴, description: 최근 10일 고점은 낮아지고 저점은 높아져 가격 범위가 좁아져요. }
+      - { id: trend_narrow, label: 좁은 범위에서 횡보, description: 최근 20일의 최고가와 최저가 차이가 최저가의 8% 이내예요. }
+  - id: support
+    name: 지지선
+    description: 이전 저점 부근에서 가격이 어떻게 움직였나요?
+    items:
+      - { id: support_bounce, label: 이전 저점에서 반등, description: 당일 저가가 직전 20일 최저가의 ±1% 안에 닿고 종가는 그 위에서 마감해요. }
+      - { id: support_repeated, label: 여러 번 지지한 가격대, description: 직전 20일 중 2일 이상 저가가 최저가의 ±1% 안이고 당일에도 그 가격대 위에서 버텨요. }
+      - { id: support_break, label: 지지선 아래로 마감, description: 당일 종가가 직전 20일 최저가보다 낮아요. }
+      - { id: support_recover, label: 이탈한 지지선 회복, description: 전일 종가는 그 이전 20일 최저가 아래였지만 당일 종가는 그 위로 돌아와요. }
+  - id: resistance
+    name: 저항선
+    description: 이전 고점 돌파와 돌파 실패를 구분해 보세요.
+    items:
+      - { id: resistance_break, label: 이전 고점 돌파, description: 당일 종가가 직전 20일 최고가를 넘어섰어요. }
+      - { id: resistance_repeated, label: 여러 번 막힌 저항선, description: 직전 20일 중 2일 이상 고가가 최고가의 ±1% 안이고 당일에도 그 부근에서 밀려 마감해요. }
+      - { id: resistance_fail, label: 돌파 후 다시 밀림, description: 당일 고가는 직전 20일 최고가를 넘었지만 종가는 그 아래에서 마감해요. }
+      - { id: resistance_retest, label: 돌파한 저항선 재지지, description: 전일 종가가 그 이전 20일 최고가를 돌파했고 당일 저가가 그 가격대 ±1%에 닿은 뒤 위에서 마감해요. }
+  - id: box
+    name: 박스권
+    description: 직전 40일 가격 범위가 15% 이내인 구간을 기준으로 봐요.
+    items:
+      - { id: box_break_up, label: 박스 상단 돌파, description: 직전 40일 가격 폭이 15% 이내이고 당일 종가가 박스 상단보다 높아요. }
+      - { id: box_break_down, label: 박스 하단 이탈, description: 직전 40일 가격 폭이 15% 이내이고 당일 종가가 박스 하단보다 낮아요. }
+      - { id: box_lower_bounce, label: 박스 하단에서 반등, description: 당일 저가가 박스 하단 ±1%에 닿고 양봉으로 박스 안에서 마감해요. }
+      - { id: box_upper_reject, label: 박스 상단에서 밀림, description: 당일 고가가 박스 상단 ±1%에 닿고 음봉으로 박스 안에서 마감해요. }
+  - id: ma
+    name: 이동평균선
+    description: 차트의 5일·20일·60일선을 확인하세요. 기준은 멈춘 날이에요.
+    items:
+      - { id: ma20_support, label: 20일선에서 반등, description: 당일 저가가 20일선 ±2%에 닿고 종가는 20일선 위에서 마감해요. }
+      - { id: ma20_break, label: 20일선 아래로 이탈, description: 전일에는 20일선 위에 있었지만 당일 종가는 20일선 아래로 내려왔어요. }
+      - { id: ma20_recover, label: 20일선 위로 복귀, description: 전일에는 20일선 아래에 있었지만 당일 종가는 20일선 위로 올라왔어요. }
+      - { id: ma60_support, label: 60일선에서 반등, description: 당일 저가가 60일선 ±2%에 닿고 종가는 60일선 위에서 마감해요. }
+      - { id: ma_bullish, label: 5·20·60일선 정배열, description: 5일선이 가장 높고 그 아래 20일선과 60일선 순서로 놓여 있어요. }
+      - { id: ma_bearish, label: 5·20·60일선 역배열, description: 5일선이 가장 낮고 그 위 20일선과 60일선 순서로 놓여 있어요. }
+      - { id: ma_cluster, label: 이동평균선 밀집, description: 5·20·60일선의 최고·최저 차이가 현재 종가의 1% 이내예요. }
+  - id: candle
+    name: 캔들
+    description: 멈춘 날 캔들의 몸통과 꼬리를 비교해 보세요.
+    items:
+      - { id: candle_bull, label: 몸통이 큰 양봉, description: 종가가 시가보다 3% 이상 높고 몸통이 당일 고저 폭의 60% 이상이에요. }
+      - { id: candle_bear, label: 몸통이 큰 음봉, description: 종가가 시가보다 3% 이상 낮고 몸통이 당일 고저 폭의 60% 이상이에요. }
+      - { id: candle_upper, label: 긴 윗꼬리, description: 윗꼬리가 몸통의 2배 이상이고 당일 고저 폭의 30% 이상이에요. }
+      - { id: candle_lower, label: 긴 아랫꼬리, description: 아랫꼬리가 몸통의 2배 이상이고 당일 고저 폭의 30% 이상이에요. }
+      - { id: candle_small, label: 몸통이 작은 캔들, description: 몸통이 당일 고저 폭의 10% 이내예요. 가격 변동이 없는 날은 제외해요. }
+      - { id: candle_small_run, label: 작은 몸통이 연속 등장, description: 최근 3일 모두 몸통이 각 날짜 고저 폭의 25% 이내예요. }
+  - id: gap
+    name: 갭
+    description: 전일 고가·저가와 당일 시가 사이의 빈 구간을 확인해요.
+    items:
+      - { id: gap_up, label: 전일 고가 위에서 시작, description: 당일 시가가 전일 고가보다 높아요. }
+      - { id: gap_down, label: 전일 저가 아래에서 시작, description: 당일 시가가 전일 저가보다 낮아요. }
+      - { id: gap_up_hold, label: 상승 갭 유지, description: 전일 고가 위에서 시작했고 당일 저가도 전일 고가보다 높아요. }
+      - { id: gap_up_fill, label: 상승 갭 메움, description: 전일 고가 위에서 시작했지만 당일 저가는 전일 고가 이하로 내려왔어요. }
+      - { id: gap_down_recover, label: 하락 갭 위로 회복, description: 전일 저가 아래에서 시작했지만 종가는 전일 저가 이상으로 돌아왔어요. }
+  - id: turnover
+    name: 거래대금
+    description: 당일 거래대금을 직전 20일 평균과 비교해요.
+    items:
+      - { id: turnover_up_expand, label: 상승하며 거래대금 증가, description: 전일보다 종가가 올랐고 거래대금은 직전 20일 평균의 1.5배 이상이에요. }
+      - { id: turnover_up_dry, label: 상승하며 거래대금 감소, description: 전일보다 종가가 올랐지만 거래대금은 직전 20일 평균의 0.7배 미만이에요. }
+      - { id: turnover_down_expand, label: 하락하며 거래대금 증가, description: 전일보다 종가가 내렸고 거래대금은 직전 20일 평균의 1.5배 이상이에요. }
+      - { id: turnover_down_dry, label: 하락하며 거래대금 감소, description: 전일보다 종가가 내렸고 거래대금은 직전 20일 평균의 0.7배 미만이에요. }
+      - { id: turnover_breakout, label: 돌파와 함께 거래대금 급증, description: 직전 20일 최고가를 종가로 돌파했고 거래대금은 직전 20일 평균의 2배 이상이에요. }
+      - { id: turnover_pullback, label: 눌림 구간에서 거래대금 감소, description: 전일보다 종가가 내렸지만 20일선 위이고 거래대금은 직전 20일 평균의 0.7배 미만이에요. }
+  - id: disclosure
+    name: 공시·뉴스
+    description: 공개 정보에 실제로 표시된 내용만 근거로 골라주세요. 호재·악재 여부는 단정하지 않아요.
+    items:
+      - { id: disclosure_earnings, label: 실적 관련 공시, description: 공개된 정보에 실적·매출·영업이익·사업보고서·감사보고서 관련 내용이 있어요. }
+      - { id: disclosure_contract, label: 계약 관련 공시, description: 공개된 정보에 판매·공급계약 또는 계약 체결·해지 관련 내용이 있어요. }
+      - { id: disclosure_buyback, label: 자사주 관련 공시, description: 공개된 정보에 자사주·자기주식 취득 또는 처분 관련 내용이 있어요. }
+      - { id: disclosure_financing, label: 증자·전환사채 관련 공시, description: 공개된 정보에 증자·전환사채·신주인수권부사채 관련 내용이 있어요. }

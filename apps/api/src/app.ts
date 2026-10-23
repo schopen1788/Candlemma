@@ -6,6 +6,7 @@ import { puzzleResult, pickCounts } from "./puzzle-result";
 import { config, type Pick } from "./config";
 import { distribution, grade, validateSubmit } from "./grade";
 import { makeToken, verifyToken } from "./token";
+import { OBSERVATION_CONTEXT, observationFeedback, observedReasons, practiceGroups, type PracticeChart } from "./observations";
 
 export type Env = { DB: D1Database; TOKEN_SECRET?: string };
 
@@ -47,8 +48,8 @@ app.get("/health", (c) => c.json({ ok: true }));
 
 app.get("/meta", async (c) => {
   const rows = await c.env.DB.prepare(
-    "SELECT pattern, COUNT(*) AS n FROM puzzles_public WHERE active = 1 GROUP BY pattern",
-  ).all<{ pattern: string; n: number }>();
+    "SELECT pattern, COUNT(*) AS n FROM puzzles_public WHERE active = 1 AND json_extract(payload, '$.judge_version') = ? GROUP BY pattern",
+  ).bind(config.judge_version).all<{ pattern: string; n: number }>();
   const counts = Object.fromEntries(rows.results.map((r) => [r.pattern, r.n]));
   return c.json({
     tags: config.tags,
@@ -64,6 +65,7 @@ type OpenBody = {
   filters: { pattern?: string; horizon?: number; market?: string };
   exclude: string[];
   user_id: string;
+  observation_version: number;
 };
 
 // 문제 열기: 공개용 데이터 + 1회용 열람 토큰. 정답·이후 캔들은 절대 포함하지 않는다.
@@ -71,9 +73,12 @@ app.post("/puzzles/open", async (c) => {
   const body = await readJson<OpenBody>(c.req);
   const context = body.context ?? "practice";
   if (context !== "practice") return c.json({ error: "아직 준비 중인 모드예요." }, 400);
+  if (body.observation_version !== undefined && body.observation_version !== 2)
+    return c.json({ error: "지원하지 않는 근거 버전이에요." }, 400);
+  const observations = body.observation_version === 2;
 
-  const where = ["active = 1"];
-  const args: (string | number)[] = [];
+  const where = ["active = 1", "json_extract(payload, '$.judge_version') = ?"];
+  const args: (string | number)[] = [config.judge_version];
   const f = body.filters ?? {};
   if (f.pattern && config.patterns.some((p) => p.id === f.pattern)) { where.push("pattern = ?"); args.push(f.pattern); }
   if (f.horizon && String(f.horizon) in config.horizons) { where.push("horizon = ?"); args.push(Number(f.horizon)); }
@@ -92,16 +97,16 @@ app.post("/puzzles/open", async (c) => {
   const token = await makeToken(secret(c.env), row.id);
   const userId = typeof body.user_id === "string" ? body.user_id.slice(0, 64) : null;
   await c.env.DB.prepare("INSERT INTO opens (token, user_id, puzzle_id, context, opened_at) VALUES (?, ?, ?, ?, ?)")
-    .bind(token, userId, row.id, context, Date.now()).run();
+    .bind(token, userId, row.id, observations ? OBSERVATION_CONTEXT : context, Date.now()).run();
 
-  return c.json({ ...JSON.parse(row.payload), open_token: token });
+  const payload = JSON.parse(row.payload);
+  const groups = observations ? practiceGroups(payload) : undefined;
+  return c.json({ ...payload, ...(groups ? { tags: groups.flatMap(g => g.items.map(t => t.id)), reason_groups: groups } : {}), open_token: token });
 });
 
 // 제출: 토큰 검증 → 사용 처리 → 판정 → 기록 → 정답·이후 캔들·해설·통계 응답
 app.post("/puzzles/submit", async (c) => {
   const body = await readJson<{ open_token: string; pick: string; tags: unknown }>(c.req);
-  const v = validateSubmit({ pick: String(body.pick ?? ""), tags: body.tags });
-  if (typeof v === "string") return c.json({ error: v }, 400);
   const token = String(body.open_token ?? "");
 
   const open = await c.env.DB.prepare("SELECT puzzle_id, user_id, context, opened_at FROM opens WHERE token = ?")
@@ -109,19 +114,24 @@ app.post("/puzzles/submit", async (c) => {
   if (!open || !(await verifyToken(secret(c.env), token, open.puzzle_id)))
     return c.json({ error: "유효하지 않은 문제 토큰이에요." }, 403);
 
-  // 1회용: used=0 인 경우에만 1로 바꾼다. 동시에 들어온 두 번째 제출은 changes=0 으로 걸러진다.
-  const upd = await c.env.DB.prepare("UPDATE opens SET used = 1 WHERE token = ? AND used = 0").bind(token).run();
-  if (!upd.meta.changes) return c.json({ error: "이미 제출한 문제예요." }, 409);
-
   const [pub, ans] = await Promise.all([
-    c.env.DB.prepare("SELECT horizon FROM puzzles_public WHERE id = ?").bind(open.puzzle_id).first<{ horizon: number }>(),
+    c.env.DB.prepare("SELECT horizon, payload FROM puzzles_public WHERE id = ?").bind(open.puzzle_id).first<{ horizon: number; payload: string }>(),
     c.env.DB.prepare("SELECT payload FROM puzzles_answer WHERE id = ?").bind(open.puzzle_id).first<{ payload: string }>(),
   ]);
   if (!pub || !ans) return c.json({ error: "문제를 찾을 수 없어요." }, 404);
+  const observations = open.context === OBSERVATION_CONTEXT;
+  const chart: PracticeChart = JSON.parse(pub.payload);
+  const allowedTags = observations ? practiceGroups(chart).flatMap(g => g.items.map(t => t.id)) : config.tags;
+  const v = validateSubmit({ pick: typeof body.pick === "string" ? body.pick : "", tags: body.tags }, allowedTags);
+  if (typeof v === "string") return c.json({ error: v }, 400);
+  // Invalid input does not consume the one-use token. Concurrent valid submissions still cannot both win.
+  const upd = await c.env.DB.prepare("UPDATE opens SET used = 1 WHERE token = ? AND used = 0").bind(token).run();
+  if (!upd.meta.changes) return c.json({ error: "이미 제출한 문제예요." }, 409);
   const a = JSON.parse(ans.payload);
   const h = String(pub.horizon);
   const answer = a.answers[h] as Pick;
-  const g = grade(v.pick, v.tags, answer, a.key_tags);
+  const keyTags = observations ? observedReasons(chart) : a.key_tags;
+  const g = grade(v.pick, v.tags, answer, keyTags);
   const now = Date.now();
 
   await c.env.DB.batch([
@@ -132,7 +142,8 @@ app.post("/puzzles/submit", async (c) => {
     c.env.DB.prepare("UPDATE puzzles_public SET play_count = play_count + 1 WHERE id = ?").bind(open.puzzle_id),
   ]);
 
-  return c.json(await puzzleResult(c.env.DB, open.puzzle_id, g, v.pick, v.tags));
+  const result = await puzzleResult(c.env.DB, open.puzzle_id, g, v.pick, v.tags);
+  return c.json({ ...result, ...(observations ? { key_tags: keyTags, evidence: observationFeedback(chart, v.tags) } : {}) });
 });
 
 // 제출한 사람만: 이 문제의 전체 사용자 선택 비율

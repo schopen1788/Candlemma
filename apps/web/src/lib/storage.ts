@@ -47,6 +47,7 @@ export interface Note {
   change: number;
   my_tags: string[];
   key_tags: string[];
+  evidence_version?: string;
   text: string;
 }
 
@@ -63,14 +64,15 @@ export const themePref = {
 };
 
 export const prefs = {
-  ma: () => read<Record<string, boolean>>("cm.ma", { "5": false, "20": true, "60": true }),
-  setMa: (v: Record<string, boolean>) => write("cm.ma", v),
+  // 새 기본값을 기존 방문자에게도 적용하고, 이후 직접 바꾼 선택은 계속 기억한다.
+  ma: () => read<Record<string, boolean>>("cm.ma.v2", { "5": true, "20": true, "60": true }),
+  setMa: (v: Record<string, boolean>) => write("cm.ma.v2", v),
   filters: () => read<{ pattern?: string; horizon?: number; market?: string }>("cm.filters", {}),
   setFilters: (v: object) => write("cm.filters", v),
 };
 
 // Convenience for refresh recovery only. The server cookie remains the identity.
 export const rankedGame = {
-  get: () => read<string>("cm.rankedGame", ""),
-  set: (id: string) => write("cm.rankedGame", id),
+  get: () => read<string>("cm.rankedGame.flat05-v3", ""),
+  set: (id: string) => write("cm.rankedGame.flat05-v3", id),
 };

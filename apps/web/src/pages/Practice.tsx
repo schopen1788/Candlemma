@@ -24,7 +24,7 @@ export default function Practice({ meta, filters, theme, onHome, ranked = false 
   const [revealed, setRevealed] = useState(0); // 공개된 이후 봉 수
   const [tags, setTags] = useState<string[]>([]);
   const [res, setRes] = useState<SubmitResult | null>(null);
-  const [maOn, setMaOn] = useState(prefs.ma());
+  const [maOn, setMaOn] = useState<Record<string, boolean>>(() => ranked ? { "5": true, "20": true, "60": true } : prefs.ma());
   const [priceMode, setPriceMode] = useState<"pct" | "krw">("pct");
   const [dateMode, setDateMode] = useState<"rel" | "date">("rel");
   const [saved, setSaved] = useState(false);
@@ -191,7 +191,7 @@ export default function Practice({ meta, filters, theme, onHome, ranked = false 
   const toggleMa = (k: string) => {
     const v = { ...maOn, [k]: !maOn[k] };
     setMaOn(v);
-    prefs.setMa(v);
+    if (!ranked) prefs.setMa(v);
   };
 
   const saveNote = (text: string) => {
@@ -208,8 +208,9 @@ export default function Practice({ meta, filters, theme, onHome, ranked = false 
       pick: res.pick,
       answer: res.answer,
       change: res.change,
-      my_tags: res.my_tags,
-      key_tags: res.key_tags,
+      my_tags: res.my_tags.map(t => res.evidence?.checks.find(c => c.id === t)?.label ?? t),
+      key_tags: res.evidence ? [...res.evidence.checks.filter(c => c.matched), ...res.evidence.examples].map(t => t.label) : res.key_tags,
+      evidence_version: res.evidence?.version,
       text,
     });
     setSaved(true);
@@ -300,7 +301,7 @@ export default function Practice({ meta, filters, theme, onHome, ranked = false 
           {(phase === "decide" || phase === "submitting") && (
             <div className="decide">
               <InfoCard puzzle={pz} />
-              <TagPicker tags={pz.tags} value={tags} onChange={setTags} disabled={phase === "submitting"} />
+              <TagPicker key={pz.puzzle_id} tags={pz.tags} groups={pz.reason_groups} value={tags} onChange={setTags} disabled={phase === "submitting"} />
               <DirectionPicker puzzle={pz} enabled={tags.length > 0} busy={phase === "submitting"} onPick={submit} />
             </div>
           )}

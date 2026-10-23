@@ -20,8 +20,8 @@ async function request(path: string, data?: unknown, extra: Record<string, strin
   if (set) cookie = set.split(';')[0];
   return { status: res.status, data: await res.json() as any, response: res };
 }
-async function start() {
-  const r = await request('/game/start', {});
+async function start(detailed = true) {
+  const r = await request('/game/start', detailed ? { observation_version: 2 } : {});
   expect(r.status).toBe(200);
   return r.data;
 }
@@ -29,10 +29,10 @@ async function answer(view: any, correct = true) {
   const q = await db.prepare('SELECT answer, key_tags FROM game_questions WHERE id = ?')
     .bind(view.question.puzzle_id).first<{ answer: string; key_tags: string }>();
   return request('/game/answer', { game_id: view.game.id, question_id: view.question.puzzle_id,
-    pick: correct ? q!.answer : 'down', tags: [correct ? JSON.parse(q!.key_tags)[0] : config.tags[1]] });
+    pick: correct ? q!.answer : 'down', tags: [correct ? JSON.parse(q!.key_tags)[0] : view.question.reason_groups ? 'candle_bull' : config.tags[1]] });
 }
-async function complete(correct = true) {
-  let v = await start();
+async function complete(correct = true, detailed = true) {
+  let v = await start(detailed);
   for (let i = 0; i < 10; i++) {
     const r = await answer(v, correct);
     expect(r.status).toBe(200);
@@ -46,7 +46,7 @@ beforeAll(async () => {
   mf = new Miniflare(convertV4MiniflareOptions({ modules: true, script: 'export default {fetch(){return new Response("ok")}}',
     compatibilityDate: '2025-09-01', d1Databases: ['DB'] }));
   db = await mf.getD1Database('DB') as unknown as D1Database;
-  for (const name of ['0001_init.sql', '0002_guest_ranking.sql']) {
+  for (const name of ['0001_init.sql', '0002_guest_ranking.sql', '0003_ranked_observations.sql', '0004_half_percent_judging.sql']) {
     const sql = await readFile(new URL(`../migrations/${name}`, import.meta.url), 'utf8');
     // D1 exec is line-oriented: each complete statement (including the trigger) is on one line.
     const clean = sql.replace(/--[^\n]*/g, '').trim();
@@ -57,7 +57,7 @@ beforeAll(async () => {
   for (let i = 0; i < 12; i++) {
     const id = `fixture-${i}`;
     const bars = Array.from({ length: 120 }, (_, n) => ({ d: n - 119, o: 0, h: 2, l: -2, c: 0, tv: 100 }));
-    const pub = { puzzle_id: id, mode_hint: 'practice', horizon: 3, flat_band: 2, market: 'KOSPI', sector: '',
+    const pub = { puzzle_id: id, mode_hint: 'practice', horizon: 3, flat_band: 0.5, judge_version: config.judge_version, market: 'KOSPI', sector: '',
       bars, ma: {}, tv_ma20: Array(120).fill(100), replay_from: -39, info: { themes: [], items: [] }, tags: config.tags };
     const ans = { answers: { '3': 'up' }, key_tags: [config.tags[0]], changes: { '3': 5 }, future_bars: bars.slice(0, 13),
       future_ma: {}, future_tv_ma20: Array(13).fill(100), pattern: 'fixture', pattern_name: '테스트', explain: '테스트',
@@ -66,6 +66,9 @@ beforeAll(async () => {
       db.prepare('INSERT INTO puzzles_public (id,payload,pattern,horizon,market,rating) VALUES (?,?,?,?,?,?)')
         .bind(id, JSON.stringify(pub), 'fixture', 3, 'KOSPI', 1500),
       db.prepare('INSERT INTO puzzles_answer (id,payload) VALUES (?,?)').bind(id, JSON.stringify(ans)),
+      db.prepare('INSERT INTO puzzles_public (id,payload,pattern,horizon,market,rating,active) VALUES (?,?,?,?,?,?,0)')
+        .bind(`legacy-${id}`, JSON.stringify({ ...pub, judge_version: undefined, flat_band: 2 }), 'fixture', 3, 'KOSPI', 1500),
+      db.prepare('INSERT INTO puzzles_answer (id,payload) VALUES (?,?)').bind(`legacy-${id}`, JSON.stringify(ans)),
     ]);
   }
 }, 30_000);
@@ -78,7 +81,7 @@ afterAll(async () => { await mf?.dispose(); });
 
 describe('guest ranking API with local D1', () => {
   it('issues a secure cookie, hides answers, resumes a unique active game', async () => {
-    const r = await request('/game/start', {});
+    const r = await request('/game/start', { observation_version: 2 });
     expect(r.status).toBe(200);
     expect(r.response.headers.get('set-cookie')).toMatch(/__Host-candlemma=.*HttpOnly.*Secure.*SameSite=Lax/i);
     expect(r.response.headers.get('cache-control')).toBe('no-store');
@@ -208,8 +211,8 @@ describe('guest ranking API with local D1', () => {
         statements.push(db.prepare('INSERT INTO anonymous_visitors VALUES (?,0)').bind(id));
         statements.push(db.prepare(`INSERT INTO game_sessions
           (id,visitor_id,season_id,state,answered_count,correct_count,score,created_at,expires_at,completed_at,registered_at)
-          VALUES (?,?,'all-v1','complete',10,10,1200,0,9999999999999,1,1)`).bind(id, id));
-        statements.push(db.prepare("INSERT INTO ranking_entries VALUES ('all-v1',?,?,?,1200,10,1)").bind(id, id, id));
+          VALUES (?,?,'all-observations-flat05-v3','complete',10,10,1200,0,9999999999999,1,1)`).bind(id, id));
+        statements.push(db.prepare("INSERT INTO ranking_entries VALUES ('all-observations-flat05-v3',?,?,?,1200,10,1)").bind(id, id, id));
       }
       await db.batch(statements);
     }
@@ -239,4 +242,129 @@ describe('guest ranking API with local D1', () => {
     expect(result.data.reveal.bars).toHaveLength(13);
     expect((await request('/puzzles/submit', payload)).status).toBe(409);
   });
+
+  it('offers detailed practice observations and validates them from server chart data', async () => {
+    const opened = await request('/puzzles/open', { context: 'practice', observation_version: 2, filters: {}, exclude: [] });
+    expect(opened.status).toBe(200);
+    expect(opened.data.reason_groups).toHaveLength(9);
+    expect(opened.data.tags).toContain('candle_small');
+    expect(opened.data.tags).not.toContain('disclosure_earnings');
+    expect(opened.data.key_tags).toBeUndefined();
+    expect(opened.data.evidence).toBeUndefined();
+    const token = opened.data.open_token;
+    expect((await request('/puzzles/submit', { open_token: token, pick: 'down', tags: [config.tags[0]] })).status).toBe(400);
+    expect((await request('/puzzles/submit', { open_token: token, pick: 'down', tags: ['disclosure_earnings'] })).status).toBe(400);
+    const result = await request('/puzzles/submit', { open_token: token, pick: 'down', tags: ['candle_small'] });
+    expect(result.status).toBe(200);
+    expect(result.data).toMatchObject({ correct: false, tag_hit: true, score: 20,
+      evidence: { version: 'observations-v2', checks: [{ id: 'candle_small', label: '몸통이 작은 캔들', matched: true }] } });
+    const stored = await db.prepare('SELECT tags, score FROM submissions WHERE puzzle_id = ?').bind(opened.data.puzzle_id).first<{ tags: string; score: number }>();
+    expect(JSON.parse(stored!.tags)).toEqual(['candle_small']);
+    expect(stored!.score).toBe(20);
+    expect((await request('/puzzles/submit', { open_token: token, pick: 'down', tags: ['candle_small'] })).status).toBe(409);
+    const ranked = await start(false);
+    expect(ranked.question.reason_groups).toBeUndefined();
+    expect((await request('/game/answer', { game_id: ranked.game.id, question_id: ranked.question.puzzle_id, pick: 'up', tags: ['candle_small'] })).status).toBe(400);
+  });
+
+  it('offers ranked observations without revealing matches and restores server-scored feedback', async () => {
+    const v = await start();
+    expect(v.rules.season).toBe('all-observations-flat05-v3');
+    expect(v.question.flat_band).toBe(0.5);
+    expect(v.question.reason_groups).toHaveLength(9);
+    expect(v.question.tags).toHaveLength(40);
+    expect(v.question.key_tags).toBeUndefined();
+    expect(v.question.evidence).toBeUndefined();
+    expect(v.question.reason_groups.flatMap((g: any) => g.items).every((t: any) => t.matched === undefined)).toBe(true);
+    const payload = { game_id: v.game.id, question_id: v.question.puzzle_id, pick: 'down', tags: ['candle_small'] };
+    for (const tags of [[config.tags[0]], ['disclosure_earnings'], ['unknown'], ['candle_small', 'candle_upper', 'candle_lower', 'trend_narrow']]) {
+      expect((await request('/game/answer', { ...payload, tags })).status).toBe(400);
+    }
+    const r = await request('/game/answer', payload);
+    expect(r.status).toBe(200);
+    expect(r.data.result).toMatchObject({ score: 20, correct: false, tag_hit: true,
+      evidence: { version: 'observations-v2', checks: [{ id: 'candle_small', matched: true }] } });
+    const restored = (await request(`/game/${v.game.id}`)).data;
+    expect(restored.result.evidence).toEqual(r.data.result.evidence);
+    expect(restored.result.score).toBe(20);
+    expect((await request('/game/answer', payload)).status).toBe(409);
+    const next = (await request('/game/next', { game_id: v.game.id })).data;
+    const miss = await request('/game/answer', { game_id: v.game.id, question_id: next.question.puzzle_id, pick: 'up', tags: ['candle_bull'] });
+    expect(miss.data.result).toMatchObject({ score: 100, tag_hit: false, evidence: { checks: [{ id: 'candle_bull', matched: false }] } });
+  });
+
+  it('retires old leaderboards and registration while publishing only the current personal best', async () => {
+    const old = await complete(true, false);
+    expect(old.rules.season).toBe('all-v1');
+    expect(old.question.flat_band).toBe(2);
+    expect(old.result.flat_band).toBe(2);
+    expect(old.result.evidence).toBeUndefined();
+    // Simulate a previously published record. Retiring a leaderboard must hide existing entries too.
+    await db.prepare(`INSERT INTO ranking_entries (season_id,visitor_id,game_id,nickname,score,correct_count,registered_at)
+      SELECT season_id,visitor_id,id,'이전 독자',score,correct_count,1 FROM game_sessions WHERE id = ?`).bind(old.game.id).run();
+    expect((await request('/ranking/submit', { game_id: old.game.id, nickname: '이전 독자' })).status).toBe(410);
+    expect((await request('/ranking')).data).toMatchObject({ total: 0, me: null });
+    const current = await complete(false);
+    expect((await request('/ranking/submit', { game_id: current.game.id, nickname: '새 독자' })).data.me.score).toBe(0);
+    expect((await request('/ranking')).data).toMatchObject({ total: 1, me: { nickname: '새 독자', score: 0 } });
+    expect((await request('/ranking?season=all-v1')).status).toBe(410);
+    expect((await request('/ranking/me?season=all-v1')).status).toBe(410);
+    expect((await request('/ranking?season=all-observations-v2')).status).toBe(410);
+    expect((await request('/ranking/me?season=all-observations-v2')).status).toBe(410);
+    expect((await request(`/game/${old.game.id}`)).data.rules.season).toBe('all-v1');
+    const cleanup = await readFile(new URL('../migrations/0005_retire_old_rankings.sql', import.meta.url), 'utf8');
+    await db.exec(cleanup.replace(/--[^\n]*/g, '').replace(/\s+/g, ' ').trim());
+    expect((await db.prepare('SELECT COUNT(*) AS n FROM ranking_entries').first<{ n: number }>())!.n).toBe(1);
+    expect((await request('/ranking')).data.me.nickname).toBe('새 독자');
+    cookie = '';
+    expect((await request('/ranking?season=all-v1')).status).toBe(410);
+    expect((await request('/ranking')).data).toMatchObject({ total: 1, me: null, entries: [{ nickname: '새 독자', score: 0 }] });
+    expect((await request('/ranking?season=unknown')).status).toBe(400);
+    expect((await request('/ranking/me?season=unknown')).status).toBe(400);
+    expect((await request('/game/start', { observation_version: 3 })).status).toBe(400);
+  }, 15_000);
+
+  it('keeps the previous observation season playable with its original threshold', async () => {
+    const old = await start(false);
+    await db.prepare("UPDATE game_sessions SET season_id = 'all-observations-v2' WHERE id = ?").bind(old.game.id).run();
+    await db.prepare("UPDATE game_questions SET key_tags = ? WHERE game_id = ?").bind('["candle_small"]', old.game.id).run();
+    const restored = (await request(`/game/${old.game.id}`)).data;
+    expect(restored.rules.season).toBe('all-observations-v2');
+    expect(restored.question.reason_groups).toHaveLength(9);
+    expect(restored.question.flat_band).toBe(2);
+    const scored = await request('/game/answer', { game_id: old.game.id, question_id: restored.question.puzzle_id, pick: 'up', tags: ['candle_small'] });
+    expect(scored.status).toBe(200);
+    expect(scored.data.result).toMatchObject({ score: 120, flat_band: 2, evidence: { version: 'observations-v2' } });
+  });
+
+  it('serves matching threshold, answer, explanation and versioned statistics at all boundaries', async () => {
+    const base = await db.prepare('SELECT payload FROM puzzles_public WHERE id = ?').bind('fixture-0').first<{ payload: string }>();
+    const answerRow = await db.prepare('SELECT payload FROM puzzles_answer WHERE id = ?').bind('fixture-0').first<{ payload: string }>();
+    const chart = JSON.parse(base!.payload), ans = JSON.parse(answerRow!.payload);
+    await db.prepare('UPDATE puzzles_public SET active = 0').run();
+    await db.prepare("INSERT INTO pattern_stats VALUES ('fixture',3,100,10,80,10)").run();
+    try {
+      for (const h of [1, 3, 5]) {
+        await db.prepare("INSERT INTO pattern_stats_versions VALUES (?, 'fixture', ?, 100, 40, 20, 40)").bind(config.judge_version, h).run();
+        for (const [change, expected] of [[-0.51, 'down'], [-0.5, 'flat'], [-0.3, 'flat'], [0.3, 'flat'], [0.5, 'flat'], [0.51, 'up']] as const) {
+          const id = `boundary-${h}-${change}`;
+          await db.batch([
+            db.prepare('INSERT INTO puzzles_public (id,payload,pattern,horizon,market,rating) VALUES (?,?,?,?,?,1500)')
+              .bind(id, JSON.stringify({ ...chart, puzzle_id: id, horizon: h }), 'fixture', h, 'KOSPI'),
+            db.prepare('INSERT INTO puzzles_answer VALUES (?,?)').bind(id, JSON.stringify({ ...ans, answers: { [h]: expected }, changes: { [h]: change }, explain: `${expected} / 보합 ±0.5%` })),
+          ]);
+          const opened = await request('/puzzles/open', { context: 'practice', observation_version: 2, filters: { horizon: h } });
+          expect(opened.status).toBe(200);
+          expect(opened.data).toMatchObject({ puzzle_id: id, flat_band: 0.5, judge_version: config.judge_version });
+          const scored = await request('/puzzles/submit', { open_token: opened.data.open_token, pick: expected, tags: ['candle_small'] });
+          expect(scored.status).toBe(200);
+          expect(scored.data).toMatchObject({ answer: expected, change, score: 120, flat_band: 0.5,
+            explain: `${expected} / 보합 ±0.5%`, stats: { up: 40, flat: 20, down: 40 } });
+          await db.prepare('UPDATE puzzles_public SET active = 0 WHERE id = ?').bind(id).run();
+        }
+      }
+    } finally {
+      await db.prepare("UPDATE puzzles_public SET active = 1 WHERE id LIKE 'fixture-%'").run();
+    }
+  }, 20_000);
 });

@@ -34,6 +34,7 @@ def build(r: dict, f: pd.DataFrame, meta: dict, jcfg: dict, pcfg: dict, tags: li
         "sector": meta["sector"],
         "horizon": h,
         "flat_band": jcfg["horizons"][h],
+        "judge_version": jcfg["version"],
         "bars": normalize_bars(f, s, e, c0, i),
         "ma": {str(n): normalize_series(f[f"ma{n}"], s, e, c0) for n in (5, 20, 60)},
         "tv_ma20": [round(float(v), 1) for v in f["tvma20"].iloc[s:e + 1]],
@@ -81,7 +82,8 @@ def main():
             f = pd.read_parquet(FEAT / f"{code}.parquet")
             meta = uni.loc[code]
             for _, r in g.iterrows():
-                key = f"{sl}:{code}:{int(r['idx'])}"
+                # New judging rules must never overwrite a puzzle referenced by past games/tokens.
+                key = f"{sl}:{jcfg['version']}:{code}:{int(r['idx'])}:{int(r['horizon'])}"
                 pid = "pz_" + hashlib.sha256(key.encode()).hexdigest()[:10]
                 public, answer = build(r.to_dict(), f, meta, jcfg, pcfg, tags, pid)
                 out.write(json.dumps({

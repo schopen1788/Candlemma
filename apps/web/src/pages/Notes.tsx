@@ -22,7 +22,7 @@ export default function Notes() {
           <p className="small">
             {n.pattern} · T+{n.horizon} {n.change > 0 ? "+" : ""}{n.change.toFixed(2)}% · 정답 {PICK_LABEL[n.answer]} / 내 판단 {n.pick ? PICK_LABEL[n.pick] : "시간 초과"}
           </p>
-          <p className="small muted">내 근거: {n.my_tags.join(", ")} · 핵심 근거: {n.key_tags.join(", ")}</p>
+          <p className="small muted">내 근거: {n.my_tags.join(", ")} · {n.evidence_version ? "확인된 관찰" : "핵심 근거"}: {n.key_tags.join(", ")}</p>
           {n.text && <p className="memo">{n.text}</p>}
           <button type="button" className="link small" onClick={() => remove(n.id)}>삭제</button>
         </article>

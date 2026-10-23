@@ -6,9 +6,14 @@ const read = (n) => parse(readFileSync(new URL(`../config/${n}`, import.meta.url
 const judge = read("judge.yaml");
 const tags = read("tags.yaml");
 const patterns = read("patterns.yaml");
+const reasons = read("reasons.yaml");
+const reasonIds = reasons.groups.flatMap(g => g.items.map(t => t.id));
+if (new Set(reasonIds).size !== reasonIds.length) throw new Error("Duplicate observation ID");
 
 const out = {
+  judge_version: judge.version,
   tags: tags.tags,
+  reason_groups: reasons.groups,
   horizons: Object.fromEntries(Object.entries(judge.horizons).map(([k, v]) => [k, Number(v)])),
   replay: judge.replay,
   patterns: Object.entries(patterns.patterns)

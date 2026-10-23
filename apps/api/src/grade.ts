@@ -6,12 +6,13 @@ export const SCORE_TAG_HIT = 20;
 export interface SubmitInput { pick: string; tags: unknown }
 
 /** 입력 검증. 근거 태그 1~3개, 중복 없음, 설정된 태그만. */
-export function validateSubmit(input: SubmitInput): { pick: Pick; tags: string[] } | string {
+export function validateSubmit(input: SubmitInput, allowedTags: string[] = config.tags): { pick: Pick; tags: string[] } | string {
   if (!PICKS.includes(input.pick as Pick)) return "예측 방향이 올바르지 않아요.";
   if (!Array.isArray(input.tags)) return "근거 태그를 골라주세요.";
-  const tags = [...new Set(input.tags.map(String))];
+  if (input.tags.some(t => typeof t !== "string")) return "근거 형식이 올바르지 않아요.";
+  const tags = [...new Set(input.tags as string[])];
   if (tags.length < 1 || tags.length > 3) return "근거 태그는 1~3개를 골라주세요.";
-  if (tags.some((t) => !config.tags.includes(t))) return "알 수 없는 근거 태그예요.";
+  if (tags.some((t) => !allowedTags.includes(t))) return "알 수 없는 근거 태그예요.";
   return { pick: input.pick as Pick, tags };
 }
 

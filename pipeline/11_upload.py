@@ -7,7 +7,7 @@ import argparse
 import json
 import subprocess
 
-from common import EXPORT, ROOT
+from common import EXPORT, ROOT, judge_cfg
 
 DB = "candlemma"
 WEB = ROOT / "apps" / "web"
@@ -19,6 +19,7 @@ def q(s) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument('--stage', action='store_true', help='Upload new version inactive; activate only after deploying its API')
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--local", action="store_true")
     g.add_argument("--remote", action="store_true")
@@ -26,21 +27,24 @@ def main():
 
     # Ranking sessions reference immutable puzzle IDs. Keep historical puzzles and
     # their answer payloads; retire them from selection instead of deleting them.
-    lines = ["UPDATE puzzles_public SET active = 0;", "DELETE FROM pattern_stats;"]
+    version = judge_cfg()["version"]
+    lines = [] if args.stage else ["UPDATE puzzles_public SET active = 0;"]
     with open(EXPORT / "puzzles.jsonl", encoding="utf-8") as f:
         for line in f:
             p = json.loads(line)
             pub = json.dumps(p["public"], ensure_ascii=False, separators=(",", ":"))
             ans = json.dumps(p["answer"], ensure_ascii=False, separators=(",", ":"))
             lines.append(
-                f"INSERT INTO puzzles_public (id, payload, pattern, horizon, market, rating) VALUES "
-                f"({q(p['id'])}, {q(pub)}, {q(p['pattern'])}, {p['horizon']}, {q(p['market'])}, {p['rating']}) "
-                "ON CONFLICT(id) DO UPDATE SET active = 1;")
+                f"INSERT INTO puzzles_public (id, payload, pattern, horizon, market, rating, active) VALUES "
+                f"({q(p['id'])}, {q(pub)}, {q(p['pattern'])}, {p['horizon']}, {q(p['market'])}, {p['rating']}, {0 if args.stage else 1}) "
+                "ON CONFLICT(id) DO UPDATE SET active = excluded.active;")
             lines.append(f"INSERT INTO puzzles_answer (id, payload) VALUES ({q(p['id'])}, {q(ans)}) ON CONFLICT(id) DO NOTHING;")
     for s in json.loads((EXPORT / "pattern_stats.json").read_text(encoding="utf-8")):
         lines.append(
-            f"INSERT INTO pattern_stats (pattern, horizon, n, up, flat, down) VALUES "
-            f"({q(s['pattern'])}, {s['horizon']}, {s['n']}, {s['up']}, {s['flat']}, {s['down']});")
+            f"INSERT INTO pattern_stats_versions (judge_version, pattern, horizon, n, up, flat, down) VALUES "
+            f"({q(version)}, {q(s['pattern'])}, {s['horizon']}, {s['n']}, {s['up']}, {s['flat']}, {s['down']}) "
+            "ON CONFLICT(judge_version, pattern, horizon) DO UPDATE SET "
+            "n=excluded.n, up=excluded.up, flat=excluded.flat, down=excluded.down;")
     seed = EXPORT / "seed.sql"
     seed.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"seed.sql: {len(lines)} statements, {seed.stat().st_size / 1e6:.1f} MB")

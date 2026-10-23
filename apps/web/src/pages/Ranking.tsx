@@ -16,6 +16,7 @@ export default function Ranking() {
     <div className="ranking-heading"><div><p className="eyebrow">차트를 읽는 사람들</p><h1 className="page-title">전체 랭킹</h1></div>
       <a className="btn primary" href="#/challenge">10문제 도전 →</a></div>
     <p className="muted small">10문제 · T+3 · 문제당 120초 · 최고 1,200점</p>
+    <p className="hint">상승 +0.5% 초과 · 보합 −0.5%~+0.5% · 하락 −0.5% 미만</p>
     {error ? <div className="empty" role="alert"><p>{error}</p><button className="btn ghost" onClick={() => setAttempt(a => a + 1)}>다시 불러오기</button></div>
       : !data ? <p className="empty" role="status">랭킹을 불러오는 중…</p> : <>
         <div className="my-ranking" role="status">

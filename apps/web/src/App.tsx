@@ -9,7 +9,7 @@ import Ranking from "./pages/Ranking";
 type Route = "home" | "practice" | "notes" | "challenge" | "ranking";
 
 function routeFromHash(): Route {
-  const h = location.hash.replace("#/", "");
+  const h = location.hash.replace("#/", "").split('?')[0];
   return h === "practice" || h === "notes" || h === "challenge" || h === "ranking" ? h : "home";
 }
 
