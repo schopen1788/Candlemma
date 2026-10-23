@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/chartview.tsx","./src/components/pickers.tsx","./src/components/resultpanel.tsx","./src/lib/api.ts","./src/lib/storage.ts","./src/pages/home.tsx","./src/pages/notes.tsx","./src/pages/practice.tsx"],"version":"5.9.3"}

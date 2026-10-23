@@ -1,0 +1,11 @@
+# 판정 규칙 (PLAN.md 2.3). 보합 범위 단위: %
+horizons:
+  1: 1.0
+  3: 2.0
+  5: 3.0
+replay:
+  lookback: 120        # 멈춘 날 포함 보여줄 거래일 수 (D-119 ~ D0)
+  replay_days: 40      # 마지막 40일은 하루씩 재생
+  ms_per_day: 120
+  reveal_extra: 10     # 공개 재생: 판정 기간 + 10일
+future_required: 30    # 출제 필터: 이후 30거래일 데이터 필요

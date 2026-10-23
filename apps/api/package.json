@@ -1,0 +1,17 @@
+{
+  "name": "@candlemma/api",
+  "private": true,
+  "type": "module",
+  "main": "src/app.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "hono": "^4.9.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250901.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

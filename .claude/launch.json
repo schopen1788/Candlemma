@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "candlemma",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["-w", "@candlemma/web", "run", "serve"],
+      "port": 8788
+    }
+  ]
+}

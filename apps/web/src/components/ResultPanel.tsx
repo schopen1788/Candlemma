@@ -1,0 +1,136 @@
+import { useState } from "react";
+import type { Pick, SubmitResult } from "../lib/api";
+import { PICK_LABEL } from "../lib/api";
+
+const pct = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
+
+export default function ResultPanel({ r, onNext, onSaveNote, saved, priceMode, setPriceMode, dateMode, setDateMode }: {
+  r: SubmitResult;
+  onNext: () => void;
+  onSaveNote: (text: string) => void;
+  saved: boolean;
+  priceMode: "pct" | "krw";
+  setPriceMode: (m: "pct" | "krw") => void;
+  dateMode: "rel" | "date";
+  setDateMode: (m: "rel" | "date") => void;
+}) {
+  const [memo, setMemo] = useState("");
+  const all = [...new Set([...r.my_tags, ...r.key_tags])];
+  return (
+    <section className="result">
+      <div className={`verdict ${r.correct ? "ok" : "miss"}`}>
+        <div>
+          <p className="verdict-title">{r.correct ? "맞았어요" : "아쉬워요"}</p>
+          <p className="verdict-sub">
+            정답 <b className={r.answer}>{PICK_LABEL[r.answer]}</b> · 내 판단 {PICK_LABEL[r.pick]}
+          </p>
+        </div>
+        <div className="verdict-num">
+          <span className={r.change > 0 ? "up" : r.change < 0 ? "down" : ""}>{pct(r.change)}</span>
+          <small>T+{r.horizon} 종가 변동 · 보합 ±{r.flat_band.toFixed(1)}%</small>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h3>내 근거 vs 핵심 근거</h3>
+          <span className={`badge ${r.tag_hit ? "ok" : ""}`}>{r.tag_hit ? "근거 일치" : "근거 불일치"}</span>
+        </div>
+        <div className="chips static">
+          {all.map((t) => {
+            const mine = r.my_tags.includes(t), key = r.key_tags.includes(t);
+            return (
+              <span key={t} className={`chip ${mine && key ? "hit" : key ? "key" : "mine"}`}>
+                {t}
+                <em>{mine && key ? "일치" : key ? "핵심" : "내 선택"}</em>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h3>해설</h3>
+          <span className="pill">{r.pattern.name}</span>
+        </div>
+        <p className="explain">{r.explain}</p>
+        {r.stats && (
+          <div className="stat">
+            <p className="small">
+              이 패턴은 2020~2025년에 <b>{r.stats.n.toLocaleString("ko-KR")}번</b> 나왔고, T+{r.horizon} 기준
+            </p>
+            <Dist pct={{ up: r.stats.up, flat: r.stats.flat, down: r.stats.down }} />
+            <p className="muted tiny">출제용 균형 샘플이 아닌 전체 원본 분포예요.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h3>다른 사람들의 판단</h3>
+          <span className="hint">{r.distribution.total.toLocaleString("ko-KR")}명 제출</span>
+        </div>
+        <Dist pct={r.distribution.pct} />
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h3>종목 공개</h3>
+        </div>
+        <p className="stock">
+          <b>{r.stock.name}</b> <span className="muted">{r.stock.code}</span>
+        </p>
+        <p className="small">
+          멈춘 날 {r.stock.date} · 종가 {r.stock.close_d0.toLocaleString("ko-KR")}원
+        </p>
+        <div className="toggles">
+          <button type="button" className={`seg${priceMode === "krw" ? " on" : ""}`} onClick={() => setPriceMode(priceMode === "krw" ? "pct" : "krw")}>
+            원화 가격으로 보기
+          </button>
+          <button type="button" className={`seg${dateMode === "date" ? " on" : ""}`} onClick={() => setDateMode(dateMode === "date" ? "rel" : "date")}>
+            실제 날짜로 보기
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h3>복기 메모</h3>
+          <span className="hint">이 브라우저에만 저장돼요</span>
+        </div>
+        <textarea
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          placeholder="무엇을 보고 판단했는지, 다음엔 무엇을 볼지 적어두세요."
+          rows={3}
+          maxLength={1000}
+        />
+      </div>
+
+      <div className="actions">
+        <button type="button" className="btn ghost" onClick={() => onSaveNote(memo)} disabled={saved}>
+          {saved ? "복기 노트에 저장됨" : "복기 노트에 저장"}
+        </button>
+        <button type="button" className="btn primary" onClick={onNext}>다음 문제</button>
+      </div>
+    </section>
+  );
+}
+
+export function Dist({ pct }: { pct: Record<Pick, number> }) {
+  return (
+    <div className="dist">
+      <div className="dist-bar" aria-hidden>
+        {(["up", "flat", "down"] as Pick[]).map((k) => (
+          <span key={k} className={k} style={{ width: `${pct[k]}%` }} />
+        ))}
+      </div>
+      <div className="dist-legend">
+        {(["up", "flat", "down"] as Pick[]).map((k) => (
+          <span key={k}><i className={k} />{PICK_LABEL[k]} {pct[k]}%</span>
+        ))}
+      </div>
+    </div>
+  );
+}

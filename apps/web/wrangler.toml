@@ -1,0 +1,10 @@
+name = "candlemma"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "candlemma"
+database_id = "481c95a0-242c-4ebf-8c94-b79fcae572b7"
+migrations_dir = "../api/migrations"

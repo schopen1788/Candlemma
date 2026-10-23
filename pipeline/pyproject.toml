@@ -1,0 +1,13 @@
+[project]
+name = "pipeline"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "finance-datareader>=0.9.202",
+    "pandas>=3.1.0",
+    "pyarrow>=26.0.0",
+    "pykrx>=1.0.51",
+    "pytest>=9.1.1",
+    "pyyaml>=6.0.3",
+    "setuptools<81",
+]

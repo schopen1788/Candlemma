@@ -1,0 +1,27 @@
+{
+  "name": "@candlemma/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "serve": "wrangler pages dev dist --port 8788",
+    "deploy": "wrangler pages deploy dist --project-name candlemma --branch main"
+  },
+  "dependencies": {
+    "@candlemma/api": "*",
+    "hono": "^4.9.0",
+    "lightweight-charts": "^5.0.8",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250901.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.4",
+    "wrangler": "^4.40.0"
+  }
+}
