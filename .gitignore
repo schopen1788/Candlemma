@@ -11,3 +11,4 @@ __pycache__/
 pipeline/data/
 # config/*.yaml 에서 생성
 apps/api/src/generated/
+*.tsbuildinfo
