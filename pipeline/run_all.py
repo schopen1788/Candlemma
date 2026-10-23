@@ -2,7 +2,7 @@
 import runpy
 import sys
 
-STEPS = ["03_features", "04_scan_patterns", "05_label", "06_pattern_stats", "07_sample_balance",
+STEPS = ["03_features", "04_scan_patterns", "05_label", "06_pattern_stats", "07_sample_balance", "07b_fetch_disclosures",
          "08_difficulty", "09_explain", "10_export", "11_upload"]
 
 if __name__ == "__main__":

@@ -38,7 +38,7 @@ def build(r: dict, f: pd.DataFrame, meta: dict, jcfg: dict, pcfg: dict, tags: li
         "ma": {str(n): normalize_series(f[f"ma{n}"], s, e, c0) for n in (5, 20, 60)},
         "tv_ma20": [round(float(v), 1) for v in f["tvma20"].iloc[s:e + 1]],
         "replay_from": -(jcfg["replay"]["replay_days"] - 1),
-        "info": {"themes": [], "items": []},
+        "info": {"themes": [], "items": json.loads(r.get("info_items") or "[]")},
         "tags": tags,
     }
     answer = {
@@ -58,6 +58,12 @@ def build(r: dict, f: pd.DataFrame, meta: dict, jcfg: dict, pcfg: dict, tags: li
         "sub_patterns": list(r["sub_patterns"]),
         "key_tags": list(r["key_tags"]),
         "explain": r["explain"],
+        # 원문 공시 제목·링크는 제출 후 결과 화면에서만
+        "disclosures": [
+            {"d": x["d"], "date": f"{x['date'][:4]}-{x['date'][4:6]}-{x['date'][6:]}", "title": x["title"],
+             "url": f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={x['rcept_no']}"}
+            for x in json.loads(r.get("disclosures_raw") or "[]")
+        ],
         "pattern_stat_ref": f"{r['pattern']}:{h}",
         "difficulty_init": int(r["difficulty_init"]),
     }

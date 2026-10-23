@@ -172,3 +172,59 @@ def normalize_bars(df: pd.DataFrame, start: int, end: int, c0: float, d0: int) -
 def normalize_series(s: pd.Series, start: int, end: int, c0: float) -> list:
     vals = s.iloc[start:end + 1]
     return [None if pd.isna(v) else round((v / c0 - 1) * 100, 2) for v in vals]
+
+
+# ---- 공시 (config/disclosures.yaml) ----
+import re
+
+_PREFIX = re.compile(r"^\[([^\]]*)\]")
+
+
+def normalize_title(raw: str) -> tuple[str, bool]:
+    """공백 제거, 앞쪽 [기재정정] 같은 꼬리표 제거. (본문, 정정 여부)"""
+    t = re.sub(r"\s+", "", raw or "")
+    corrected = False
+    while (m := _PREFIX.match(t)):
+        corrected |= "정정" in m.group(1)
+        t = t[m.end():]
+    return t, corrected
+
+
+def classify_disclosure(raw: str, rules: list[dict]):
+    """변환표에서 첫 일치 규칙. 반환: None(표에 없음) | {"hide": True} | {"label", "tag"?, "corrected"}"""
+    body, corrected = normalize_title(raw)
+    for r in rules:
+        if r["match"] in body:
+            if r.get("hide"):
+                return {"hide": True}
+            return {"label": r["label"], "tag": r.get("tag"), "corrected": corrected}
+    return None
+
+
+def disclosure_items(discs: list[dict], cfg: dict) -> tuple[list[dict], bool]:
+    """discs: [{d, title}] (d<=0). 공개용 정보 카드 항목과 '최근 악재 공시' 여부.
+
+    표시 문구는 변환표의 label 만 쓴다. 원문 제목·제출인·접수번호는 넣지 않는다.
+    """
+    shown, etc, bad = [], [], False
+    seen = set()
+    for x in sorted(discs, key=lambda x: -x["d"]):
+        if x["d"] > 0:
+            continue
+        c = classify_disclosure(x["title"], cfg["rules"])
+        if c is None:
+            etc.append(x["d"])
+            continue
+        if c.get("hide"):
+            continue
+        if c.get("tag") == "악재 공시" and x["d"] > -cfg["bad_tag_days"]:
+            bad = True
+        text = c["label"] + (" (정정)" if c["corrected"] else "")
+        if (x["d"], text) in seen:
+            continue
+        seen.add((x["d"], text))
+        shown.append({"d": int(x["d"]), "kind": "disclosure", "text": text, "url": None})
+    items = shown[: cfg["max_items"]]
+    if etc and len(items) < cfg["max_items"]:
+        items.append({"d": int(max(etc)), "kind": "disclosure", "text": f"기타 공시 {len(etc)}건", "url": None})
+    return items, bad

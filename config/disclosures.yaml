@@ -1,0 +1,89 @@
+# 공시 제목 → 화면 표시 문구 (PLAN.md 6.1, Phase 4)
+# - 원문 제목은 회사·자회사 이름이 섞일 수 있어 그대로 쓰지 않는다. 아래 표에 맞는 공시만 label 로 보여준다.
+# - match: 공백을 뺀 원문 제목에 포함되는 문자열. 위에서부터 먼저 맞는 항목을 쓴다.
+# - tag: 핵심 근거 태그 후보 (악재 공시). hide: true 는 표시하지 않고 기타 개수에도 넣지 않는 잦은 공시.
+window_days: 20        # 멈춘 날 포함 직전 20거래일 공시
+bad_tag_days: 5        # D-4 ~ D0 의 악재 공시는 핵심 근거에 '악재 공시'를 넣는다
+max_items: 5
+
+rules:
+  # 표시하지 않는 잦은 공시
+  - { match: 임원ㆍ주요주주특정증권등소유상황보고서, hide: true }
+  - { match: 임원·주요주주특정증권등소유상황보고서, hide: true }
+  - { match: 주식등의대량보유상황보고서, hide: true }
+  - { match: 대규모기업집단현황공시, hide: true }
+  - { match: 특수관계인, hide: true }
+  - { match: 의결권대리행사권유, hide: true }
+  - { match: 증권발행실적보고서, hide: true }
+  - { match: 투자설명서, hide: true }
+  - { match: 기업지배구조보고서, hide: true }
+  - { match: 동일인등출자계열회사, hide: true }
+  - { match: 공정거래자율준수, hide: true }
+
+  # 악재로 읽히는 공시
+  - { match: 유상증자결정, label: 유상증자 결정, tag: 악재 공시 }
+  - { match: 전환사채권발행결정, label: 전환사채 발행 결정, tag: 악재 공시 }
+  - { match: 신주인수권부사채권발행결정, label: 신주인수권부사채 발행 결정, tag: 악재 공시 }
+  - { match: 교환사채권발행결정, label: 교환사채 발행 결정, tag: 악재 공시 }
+  - { match: 감자결정, label: 감자 결정, tag: 악재 공시 }
+  - { match: 횡령, label: 횡령·배임 혐의 발생, tag: 악재 공시 }
+  - { match: 배임, label: 횡령·배임 혐의 발생, tag: 악재 공시 }
+  - { match: 불성실공시법인, label: 불성실공시법인 지정(예고), tag: 악재 공시 }
+  - { match: 관리종목, label: 관리종목 지정 관련, tag: 악재 공시 }
+  - { match: 상장적격성, label: 상장적격성 실질심사 관련, tag: 악재 공시 }
+  - { match: 상장폐지, label: 상장폐지 관련, tag: 악재 공시 }
+  - { match: 투자주의환기종목, label: 투자주의환기종목 지정, tag: 악재 공시 }
+  - { match: 회생절차, label: 회생절차 관련, tag: 악재 공시 }
+  - { match: 부도발생, label: 부도 발생, tag: 악재 공시 }
+  - { match: 영업정지, label: 영업정지, tag: 악재 공시 }
+  - { match: 소송등의제기, label: 소송 제기·신청, tag: 악재 공시 }
+  - { match: 감사의견, label: 감사의견 관련, tag: 악재 공시 }
+  - { match: 공급계약해지, label: 공급계약 해지, tag: 악재 공시 }
+  - { match: 계약해지, label: 계약 해지, tag: 악재 공시 }
+  - { match: 자기주식처분결정, label: 자사주 처분 결정 }
+
+  # 그 밖의 주요 공시
+  - { match: 무상증자결정, label: 무상증자 결정 }
+  - { match: 자기주식취득신탁계약, label: 자사주 신탁계약 체결 }
+  - { match: 자기주식취득결정, label: 자사주 취득 결정 }
+  - { match: 주식소각결정, label: 자사주 소각 결정 }
+  - { match: 자기주식소각, label: 자사주 소각 결정 }
+  - { match: 단일판매ㆍ공급계약, label: 단일판매·공급계약 체결 }
+  - { match: 단일판매·공급계약, label: 단일판매·공급계약 체결 }
+  - { match: 공급계약체결, label: 공급계약 체결 }
+  - { match: 매출액또는손익구조, label: 매출액·손익구조 대규모 변동 }
+  - { match: 잠정)실적, label: 잠정 실적 발표 }
+  - { match: 현금ㆍ현물배당, label: 현금·현물 배당 결정 }
+  - { match: 현금·현물배당, label: 현금·현물 배당 결정 }
+  - { match: 주식분할결정, label: 주식 분할 결정 }
+  - { match: 주식병합결정, label: 주식 병합 결정 }
+  - { match: 타법인주식및출자증권취득, label: 타법인 주식 취득 결정 }
+  - { match: 타법인주식및출자증권처분, label: 타법인 주식 처분 결정 }
+  - { match: 유형자산취득, label: 유형자산 취득 결정 }
+  - { match: 유형자산처분, label: 유형자산 처분 결정 }
+  - { match: 신규시설투자, label: 신규 시설투자 }
+  - { match: 회사합병결정, label: 합병 결정 }
+  - { match: 회사분할결정, label: 회사 분할 결정 }
+  - { match: 분할합병결정, label: 분할합병 결정 }
+  - { match: 영업양수, label: 영업 양수 결정 }
+  - { match: 영업양도, label: 영업 양도 결정 }
+  - { match: 최대주주변경, label: 최대주주 변경 }
+  - { match: 대표이사변경, label: 대표이사 변경 }
+  - { match: 대표집행임원)변경, label: 대표이사 변경 }
+  - { match: 공개매수, label: 공개매수 관련 }
+  - { match: 특허권취득, label: 특허권 취득 }
+  - { match: 기술도입, label: 기술 도입·이전·제휴 계약 }
+  - { match: 임상, label: 임상시험 관련 공시 }
+  - { match: 품목허가, label: 품목허가 관련 공시 }
+  - { match: 조회공시요구, label: 거래소 조회공시 요구 }
+  - { match: 풍문또는보도, label: 풍문·보도 해명 }
+  - { match: 기업설명회, label: 기업설명회(IR) 개최 }
+  - { match: 자회사의주요경영사항, label: 자회사 주요경영사항 }
+  - { match: 투자판단관련주요경영사항, label: 투자판단 관련 주요경영사항 }
+  - { match: 증권신고서, label: 증권신고서 제출 }
+  - { match: 사업보고서, label: 사업보고서 제출 }
+  - { match: 반기보고서, label: 반기보고서 제출 }
+  - { match: 분기보고서, label: 분기보고서 제출 }
+  - { match: 감사보고서제출, label: 감사보고서 제출 }
+  - { match: 주주총회소집, label: 주주총회 소집 }
+  - { match: 주주총회결과, label: 주주총회 결과 }

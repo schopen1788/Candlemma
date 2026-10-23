@@ -38,3 +38,17 @@ def patterns_cfg() -> dict:
 
 def tags_list() -> list[str]:
     return load_yaml("tags.yaml")["tags"]
+
+
+def env(name: str) -> str | None:
+    """pipeline/.env 의 KEY=VALUE 를 읽는다 (환경변수가 우선)."""
+    import os
+    if os.environ.get(name):
+        return os.environ[name]
+    p = Path(__file__).resolve().parent / ".env"
+    if p.exists():
+        for line in p.read_text(encoding="utf-8").splitlines():
+            k, _, v = line.strip().partition("=")
+            if k == name and v:
+                return v.strip().strip('"')
+    return None

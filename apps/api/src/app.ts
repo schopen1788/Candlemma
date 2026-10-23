@@ -130,6 +130,7 @@ app.post("/puzzles/submit", async (c) => {
     flat_band: config.horizons[h],
     key_tags: a.key_tags,
     explain: a.explain,
+    disclosures: a.disclosures ?? [],
     pattern: { id: a.pattern, name: a.pattern_name, desc: p?.desc ?? "" },
     stats: stat,
     distribution: distribution(dist),

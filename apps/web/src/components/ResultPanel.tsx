@@ -84,6 +84,16 @@ export default function ResultPanel({ r, onNext, onSaveNote, saved, priceMode, s
         <p className="small">
           멈춘 날 {r.stock.date} · 종가 {r.stock.close_d0.toLocaleString("ko-KR")}원
         </p>
+        {(r.disclosures ?? []).length > 0 && (
+          <ul className="news disc">
+            {r.disclosures.map((x) => (
+              <li key={x.url}>
+                <span className="d">{x.date.slice(5).replace("-", ".")}</span>
+                <a href={x.url} target="_blank" rel="noreferrer">{x.title}</a>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="toggles">
           <button type="button" className={`seg${priceMode === "krw" ? " on" : ""}`} onClick={() => setPriceMode(priceMode === "krw" ? "pct" : "krw")}>
             원화 가격으로 보기

@@ -31,6 +31,7 @@ export interface SubmitResult {
   flat_band: number;
   key_tags: string[];
   explain: string;
+  disclosures: { d: number; date: string; title: string; url: string }[];
   pattern: { id: string; name: string; desc: string };
   stats: { n: number; up: number; flat: number; down: number } | null;
   distribution: { total: number; pct: Record<Pick, number> };

@@ -91,7 +91,11 @@ export function InfoCard({ puzzle }: { puzzle: Puzzle }) {
       {items.length > 0 ? (
         <ul className="news">
           {items.slice(0, 5).map((it, i) => (
-            <li key={i}><span className="d">D{it.d === 0 ? "-0" : it.d}</span>{it.text}</li>
+            <li key={i}>
+              <span className="d">D{it.d === 0 ? "-0" : it.d}</span>
+              <span className="kind">{it.kind === "disclosure" ? "공시" : "뉴스"}</span>
+              {it.text}
+            </li>
           ))}
         </ul>
       ) : (

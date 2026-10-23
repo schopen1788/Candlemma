@@ -144,6 +144,9 @@ nav a.on, nav a:hover { background: var(--surface-2); color: var(--ink); }
 .news li { font-size: 14px; display: flex; gap: 8px; }
 .news .d { color: var(--muted); font-size: 12px; min-width: 34px; padding-top: 2px; }
 .info p { margin: 0; }
+.news .kind { flex: none; font-size: 11px; font-weight: 700; color: var(--ink-2); background: var(--surface-2); border-radius: 6px; padding: 1px 6px; height: fit-content; margin-top: 2px; }
+.news.disc { margin: 8px 0 4px; }
+.news.disc a { color: var(--ink-2); font-size: 13px; }
 .dir { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .dir-btn { border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px; padding: 14px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .dir-btn strong { font-size: 18px; }
