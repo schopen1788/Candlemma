@@ -201,14 +201,20 @@ def classify_disclosure(raw: str, rules: list[dict]):
     return None
 
 
+def d_label(d: int) -> str:
+    """상대 거래일 표기. 화면의 'D-0' 표기와 맞춘다."""
+    return "D-0" if d == 0 else f"D{d}" if d < 0 else f"D+{d}"
+
+
 def disclosure_items(discs: list[dict], cfg: dict) -> tuple[list[dict], bool]:
     """discs: [{d, title}] (d<=0). 공개용 정보 카드 항목과 '최근 악재 공시' 여부.
 
     표시 문구는 변환표의 label 만 쓴다. 원문 제목·제출인·접수번호는 넣지 않는다.
+    같은 label 이 여러 건이면 '라벨 ×n (D-5~D-1)' 한 줄로 묶는다 (정정 여부는 묶을 때 구분하지 않음).
     """
-    shown, etc, bad = [], [], False
-    seen = set()
-    for x in sorted(discs, key=lambda x: -x["d"]):
+    groups: dict[str, dict] = {}  # label → {ds, corrected}
+    etc, bad = [], False
+    for x in discs:
         if x["d"] > 0:
             continue
         c = classify_disclosure(x["title"], cfg["rules"])
@@ -219,11 +225,19 @@ def disclosure_items(discs: list[dict], cfg: dict) -> tuple[list[dict], bool]:
             continue
         if c.get("tag") == "악재 공시" and x["d"] > -cfg["bad_tag_days"]:
             bad = True
-        text = c["label"] + (" (정정)" if c["corrected"] else "")
-        if (x["d"], text) in seen:
-            continue
-        seen.add((x["d"], text))
-        shown.append({"d": int(x["d"]), "kind": "disclosure", "text": text, "url": None})
+        g = groups.setdefault(c["label"], {"ds": [], "corrected": False})
+        g["ds"].append(int(x["d"]))
+        g["corrected"] |= c["corrected"]
+    shown = []
+    for label, g in groups.items():
+        new, old, n = max(g["ds"]), min(g["ds"]), len(g["ds"])
+        if n == 1:
+            text = label + (" (정정)" if g["corrected"] else "")
+        else:
+            rng = d_label(new) if new == old else f"{d_label(old)}~{d_label(new)}"
+            text = f"{label} ×{n} ({rng})"
+        shown.append({"d": new, "kind": "disclosure", "text": text, "url": None})
+    shown.sort(key=lambda x: -x["d"])
     items = shown[: cfg["max_items"]]
     if etc and len(items) < cfg["max_items"]:
         items.append({"d": int(max(etc)), "kind": "disclosure", "text": f"기타 공시 {len(etc)}건", "url": None})

@@ -50,6 +50,29 @@ def test_items_never_contain_raw_title():
     assert "가나다" not in json.dumps(items, ensure_ascii=False)
 
 
+def test_same_label_grouped_into_one_line():
+    discs = [
+        {"d": -1, "title": "[기재정정]단일판매ㆍ공급계약체결"},
+        {"d": -2, "title": "[기재정정]단일판매ㆍ공급계약체결"},
+        {"d": -4, "title": "단일판매ㆍ공급계약체결"},
+        {"d": -5, "title": "[기재정정]단일판매ㆍ공급계약체결"},
+        {"d": 0, "title": "[기재정정]주주총회소집결의"},
+        {"d": -3, "title": "사업보고서(2023.12)"},
+        {"d": -3, "title": "[첨부정정]사업보고서(2023.12)"},
+    ]
+    items, _ = disclosure_items(discs, CFG)
+    assert [(x["d"], x["text"]) for x in items] == [
+        (0, "주주총회 소집 (정정)"),
+        (-1, "단일판매·공급계약 체결 ×4 (D-5~D-1)"),
+        (-3, "사업보고서 제출 ×2 (D-3)"),
+    ]
+
+
+def test_group_range_with_stop_day():
+    items, _ = disclosure_items([{"d": 0, "title": "유상증자결정"}, {"d": -2, "title": "유상증자결정"}], CFG)
+    assert items[0]["text"] == "유상증자 결정 ×2 (D-2~D-0)"
+
+
 def test_old_bad_disclosure_is_not_key_tag():
     _, bad = disclosure_items([{"d": -10, "title": "유상증자결정"}], CFG)
     assert not bad
@@ -71,7 +94,7 @@ def test_exported_info_uses_only_fixed_labels_and_no_company_names():
                 assert set(it) == {"d", "kind", "text", "url"}
                 texts.add(it["text"])
     for t in texts:
-        base = t.removesuffix(" (정정)")
+        base = re.sub(r" (\(정정\)|×\d+ \(D-\d+(~D-\d+)?\))$", "", t)
         assert base in ALLOWED or re.fullmatch(r"기타 공시 \d+건", t), t
     names = set(pd.read_parquet(RAW / "universe.parquet")["name"])
     if CORPS.exists():
