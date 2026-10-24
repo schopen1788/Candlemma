@@ -55,7 +55,8 @@ export interface Meta {
 
 export interface Filters { pattern?: string; horizon?: number; market?: string }
 
-const apiBase = /^\/candlemma(?:\/|$)/.test(location.pathname) ? "/candlemma/api" : "/api";
+const gamePrefix = location.pathname.match(/^\/(?:games\/)?candlemma(?=\/|$)/)?.[0] ?? "";
+const apiBase = `${gamePrefix}/api`;
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${apiBase}${path}`, {
